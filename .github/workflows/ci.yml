@@ -43,7 +43,7 @@ jobs:
             echo "package_version=$TAG" >> "$GITHUB_OUTPUT"
           else
             DATE=$(date -u +%y%m%d)
-            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Restore
@@ -86,7 +86,7 @@ jobs:
             echo "package_version=$TAG" >> "$GITHUB_OUTPUT"
           else
             DATE=$(date -u +%y%m%d)
-            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Pack
@@ -98,11 +98,25 @@ jobs:
         run: |
           set -euo pipefail
           SOURCE="https://api.nuget.org/v3/index.json"
+          PUSH_LOG="$(mktemp)"
 
+          set +e
           dotnet nuget push artifacts/*.nupkg \
             --api-key "$NUGET_API_KEY" \
             --source "$SOURCE" \
-            --skip-duplicate
+            --skip-duplicate \
+            --no-symbols 2>&1 | tee "$PUSH_LOG"
+          NUPKG_EXIT=$?
+          set -e
+
+          if grep -qiE 'Conflict|already exists' "$PUSH_LOG"; then
+            echo "Package version already on NuGet; skipping symbol upload (NuGet cannot add symbols for a skipped duplicate)."
+            exit 0
+          fi
+
+          if [[ "$NUPKG_EXIT" -ne 0 ]]; then
+            exit "$NUPKG_EXIT"
+          fi
 
           shopt -s nullglob
           symbols=(artifacts/*.snupkg)
@@ -118,7 +132,7 @@ jobs:
               exit 0
             fi
             echo "Symbol push attempt ${attempt} failed; waiting for package index..."
-            sleep 20
+            sleep 30
           done
           echo "Symbol package push failed after retries." >&2
           exit 1
