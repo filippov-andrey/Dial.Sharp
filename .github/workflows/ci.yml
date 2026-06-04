@@ -90,49 +90,24 @@ jobs:
           fi
 
       - name: Pack
-        run: dotnet pack src/Dial.Sharp/Dial.Sharp.csproj -c Release -o artifacts -p:Version=${{ steps.version.outputs.package_version }}
+        run: >-
+          dotnet pack src/Dial.Sharp/Dial.Sharp.csproj -c Release -o artifacts
+          -p:Version=${{ steps.version.outputs.package_version }}
+          -p:IncludeSymbols=false
 
       - name: Publish to NuGet.org
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
           set -euo pipefail
-          SOURCE="https://api.nuget.org/v3/index.json"
-          PUSH_LOG="$(mktemp)"
 
-          set +e
+          if [[ -z "${NUGET_API_KEY}" ]]; then
+            echo "NUGET_API_KEY secret is not configured." >&2
+            exit 1
+          fi
+
           dotnet nuget push artifacts/*.nupkg \
             --api-key "$NUGET_API_KEY" \
-            --source "$SOURCE" \
+            --source https://api.nuget.org/v3/index.json \
             --skip-duplicate \
-            --no-symbols 2>&1 | tee "$PUSH_LOG"
-          NUPKG_EXIT=$?
-          set -e
-
-          if grep -qiE 'Conflict|already exists' "$PUSH_LOG"; then
-            echo "Package version already on NuGet; skipping symbol upload (NuGet cannot add symbols for a skipped duplicate)."
-            exit 0
-          fi
-
-          if [[ "$NUPKG_EXIT" -ne 0 ]]; then
-            exit "$NUPKG_EXIT"
-          fi
-
-          shopt -s nullglob
-          symbols=(artifacts/*.snupkg)
-          if ((${#symbols[@]} == 0)); then
-            exit 0
-          fi
-
-          for attempt in 1 2 3 4 5; do
-            if dotnet nuget push "${symbols[@]}" \
-              --api-key "$NUGET_API_KEY" \
-              --source "$SOURCE" \
-              --skip-duplicate; then
-              exit 0
-            fi
-            echo "Symbol push attempt ${attempt} failed; waiting for package index..."
-            sleep 30
-          done
-          echo "Symbol package push failed after retries." >&2
-          exit 1
+            --no-symbols
