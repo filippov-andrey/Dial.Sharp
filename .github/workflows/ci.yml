@@ -43,7 +43,7 @@ jobs:
             echo "package_version=$TAG" >> "$GITHUB_OUTPUT"
           else
             DATE=$(date -u +%y%m%d)
-            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Restore
@@ -86,7 +86,7 @@ jobs:
             echo "package_version=$TAG" >> "$GITHUB_OUTPUT"
           else
             DATE=$(date -u +%y%m%d)
-            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Pack
@@ -106,8 +106,23 @@ jobs:
             exit 1
           fi
 
+          VERSION="${{ steps.version.outputs.package_version }}"
+          echo "Publishing Dial.Sharp ${VERSION}"
+
           dotnet nuget push artifacts/*.nupkg \
             --api-key "$NUGET_API_KEY" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate \
             --no-symbols
+
+          for attempt in 1 2 3 4 5 6 10; do
+            if curl -fsS "https://api.nuget.org/v3-flatcontainer/dial.sharp/index.json" | grep -q "\"${VERSION}\""; then
+              echo "Package Dial.Sharp ${VERSION} is visible on NuGet.org."
+              exit 0
+            fi
+            echo "Waiting for NuGet.org index (attempt ${attempt})..."
+            sleep 30
+          done
+
+          echo "Package Dial.Sharp ${VERSION} was pushed but is not listed on NuGet.org yet." >&2
+          exit 1
