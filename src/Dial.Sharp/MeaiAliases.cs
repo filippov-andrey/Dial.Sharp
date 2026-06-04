@@ -1,0 +1,10 @@
+global using Microsoft.Extensions.AI;
+global using ChatFinishReason = Microsoft.Extensions.AI.ChatFinishReason;
+global using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
+global using ChatOptions = Microsoft.Extensions.AI.ChatOptions;
+global using ChatResponse = Microsoft.Extensions.AI.ChatResponse;
+global using ChatResponseFormat = Microsoft.Extensions.AI.ChatResponseFormat;
+global using ChatResponseUpdate = Microsoft.Extensions.AI.ChatResponseUpdate;
+global using ChatRole = Microsoft.Extensions.AI.ChatRole;
+global using EmbeddingGenerationOptions = Microsoft.Extensions.AI.EmbeddingGenerationOptions;
+global using IChatClient = Microsoft.Extensions.AI.IChatClient;

@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Dial.Sharp/Dial.Sharp.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Dial.Sharp.Tests/Dial.Sharp.Tests.csproj" />
+  </Folder>
+</Solution>

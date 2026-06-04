@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <RootNamespace>Dial.Sharp</RootNamespace>
+        <AssemblyName>Dial.Sharp</AssemblyName>
+        <PackageId>Dial.Sharp</PackageId>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <Description>MEAI provider for Epam DIAL Core API.</Description>
+        <IsPackable>true</IsPackable>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <Authors>Filippov Andrey</Authors>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/filippov-andrey/Dial.Sharp</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/filippov-andrey/Dial.Sharp.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageTags>DIAL;MEAI;Microsoft.Extensions.AI;OpenAI;LLM</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.AI.Abstractions"/>
+        <PackageReference Include="OpenAI"/>
+    </ItemGroup>
+
+</Project>

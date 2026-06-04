@@ -1,0 +1,10 @@
+<Project>
+  <!--
+    Product version (SemVer major.minor.patch).
+    Preview packages on main: {VersionPrefix}-preview.{yyMMdd}.{build} (e.g. 1.0.0-preview.260604.42).
+    Stable release: tag v{VersionPrefix} (e.g. v1.0.0) — three-part version like 10.0.8, without -preview.
+  -->
+  <PropertyGroup>
+    <VersionPrefix>1.0.0</VersionPrefix>
+  </PropertyGroup>
+</Project>
