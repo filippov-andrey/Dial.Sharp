@@ -43,7 +43,7 @@ jobs:
             echo "package_version=$TAG" >> "$GITHUB_OUTPUT"
           else
             DATE=$(date -u +%y%m%d)
-            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Restore
@@ -86,7 +86,7 @@ jobs:
             echo "package_version=$TAG" >> "$GITHUB_OUTPUT"
           else
             DATE=$(date -u +%y%m%d)
-            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Pack
@@ -96,13 +96,29 @@ jobs:
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
+          set -euo pipefail
+          SOURCE="https://api.nuget.org/v3/index.json"
+
           dotnet nuget push artifacts/*.nupkg \
             --api-key "$NUGET_API_KEY" \
-            --source https://api.nuget.org/v3/index.json \
+            --source "$SOURCE" \
             --skip-duplicate
-          if compgen -G "artifacts/*.snupkg" > /dev/null; then
-            dotnet nuget push artifacts/*.snupkg \
-              --api-key "$NUGET_API_KEY" \
-              --source https://api.nuget.org/v3/index.json \
-              --skip-duplicate
+
+          shopt -s nullglob
+          symbols=(artifacts/*.snupkg)
+          if ((${#symbols[@]} == 0)); then
+            exit 0
           fi
+
+          for attempt in 1 2 3 4 5; do
+            if dotnet nuget push "${symbols[@]}" \
+              --api-key "$NUGET_API_KEY" \
+              --source "$SOURCE" \
+              --skip-duplicate; then
+              exit 0
+            fi
+            echo "Symbol push attempt ${attempt} failed; waiting for package index..."
+            sleep 20
+          done
+          echo "Symbol package push failed after retries." >&2
+          exit 1
