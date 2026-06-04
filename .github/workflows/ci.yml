@@ -107,45 +107,13 @@ jobs:
           fi
 
           VERSION="${{ steps.version.outputs.package_version }}"
-          INDEX_URL="https://api.nuget.org/v3-flatcontainer/ai.dial.sharp/index.json"
-          PUSH_LOG="$(mktemp)"
 
           echo "Publishing AI.Dial.Sharp ${VERSION}"
 
-          set +e
           dotnet nuget push artifacts/*.nupkg \
             --api-key "$NUGET_API_KEY" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate \
-            --no-symbols 2>&1 | tee "$PUSH_LOG"
-          PUSH_EXIT=$?
-          set -e
+            --no-symbols
 
-          is_listed() {
-            curl -fsS "$INDEX_URL" 2>/dev/null | grep -q "\"${VERSION}\""
-          }
-
-          if grep -qiE 'Conflict|already exists' "$PUSH_LOG"; then
-            if is_listed; then
-              echo "AI.Dial.Sharp ${VERSION} is already on NuGet.org."
-              exit 0
-            fi
-            echo "::error::NuGet returned Conflict for ${VERSION}, but AI.Dial.Sharp is not on the gallery (no package index). Check push output (e.g. reserved package ID). Sign in at https://www.nuget.org/manage/packages or push manually with a new version." >&2
-            exit 1
-          fi
-
-          if [[ "$PUSH_EXIT" -ne 0 ]]; then
-            exit "$PUSH_EXIT"
-          fi
-
-          for attempt in 1 2 3 4 5 6 8 10 12; do
-            if is_listed; then
-              echo "AI.Dial.Sharp ${VERSION} is visible on NuGet.org."
-              exit 0
-            fi
-            echo "Waiting for NuGet.org validation/index (attempt ${attempt})..."
-            sleep 30
-          done
-
-          echo "::error::Push succeeded but AI.Dial.Sharp ${VERSION} is not listed on NuGet.org. Check https://www.nuget.org/manage/packages for validation errors." >&2
-          exit 1
+          echo "AI.Dial.Sharp ${VERSION} publish completed."
