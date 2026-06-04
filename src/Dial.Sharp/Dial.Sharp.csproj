@@ -4,7 +4,7 @@
         <TargetFramework>net10.0</TargetFramework>
         <RootNamespace>Dial.Sharp</RootNamespace>
         <AssemblyName>Dial.Sharp</AssemblyName>
-        <PackageId>Dial.Sharp</PackageId>
+        <PackageId>AI.Dial.Sharp</PackageId>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <Description>MEAI provider for Epam DIAL Core API.</Description>

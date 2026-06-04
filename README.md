@@ -1,7 +1,7 @@
 # Dial.Sharp
 
 [![CI](https://github.com/filippov-andrey/Dial.Sharp/actions/workflows/ci.yml/badge.svg)](https://github.com/filippov-andrey/Dial.Sharp/actions/workflows/ci.yml)
-[![NuGet](https://img.shields.io/nuget/v/Dial.Sharp?label=NuGet)](https://www.nuget.org/packages/Dial.Sharp)
+[![NuGet](https://img.shields.io/nuget/v/AI.Dial.Sharp?label=NuGet)](https://www.nuget.org/packages/AI.Dial.Sharp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **[DIAL](https://dialx.ai/)** (Deterministic Integrator of Applications and Language Models) is EPAM’s open-source AI orchestration platform for building and operating enterprise GenAI applications. It provides a unified, model-agnostic [Core API](https://dialx.ai/dial_api) (OpenAI-compatible for chat and embeddings) plus services for applications, files, tools, access control, and rate limits — so teams can use many LLMs and DIAL apps through one integration layer instead of separate provider SDKs.
@@ -10,17 +10,19 @@
 
 ## Install the package
 
+NuGet package ID: **`AI.Dial.Sharp`**. C# namespace and assembly: **`Dial.Sharp`**.
+
 From the command-line:
 
 ```console
-dotnet add package Dial.Sharp
+dotnet add package AI.Dial.Sharp
 ```
 
 Or directly in the C# project file:
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Dial.Sharp" Version="[CURRENTVERSION]" />
+  <PackageReference Include="AI.Dial.Sharp" Version="[CURRENTVERSION]" />
 </ItemGroup>
 ```
 
