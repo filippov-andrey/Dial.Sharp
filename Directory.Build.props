@@ -1,0 +1,13 @@
+<Project>
+  <Import Project="$(MSBuildThisFileDirectory)Version.props" Condition="Exists('$(MSBuildThisFileDirectory)Version.props')" />
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);OPENAI001;SCME0001;MEAI001;MAAI001</NoWarn>
+  </PropertyGroup>
+</Project>

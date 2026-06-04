@@ -1,0 +1,152 @@
+using System.Net;
+using System.Text;
+using System.Text.Json;
+
+namespace Dial.Sharp;
+
+public class DialTokenizeClientTests
+{
+    [Fact]
+    public async Task TokenizeAsync_UsesV1DeploymentPath()
+    {
+        Uri? requestedUri = null;
+        using var httpClient = CreateClient((request, _) =>
+        {
+            requestedUri = request.RequestUri;
+            return Task.FromResult(JsonResponse("""
+                                                {"outputs":[{"status":"success","token_count":14}]}
+                                                """));
+        });
+
+        DialTokenizeClient client = new(httpClient, new Uri("https://dial.example.com"), "qwen3.6-27b-awq");
+        var response = await client.TokenizeAsync(new DialTokenizeRequest
+        {
+            Inputs = [DialTokenizeInput.FromString("hello")],
+        });
+
+        Assert.Equal("https://dial.example.com/v1/deployments/qwen3.6-27b-awq/tokenize", requestedUri?.ToString());
+        Assert.True(response.Outputs[0].IsSuccess);
+        Assert.Equal(14, response.Outputs[0].TokenCount);
+    }
+
+    [Fact]
+    public async Task CountMessagesAsync_MapsUserMessage()
+    {
+        using var httpClient = CreateClient((_, _) =>
+            Task.FromResult(JsonResponse("""
+                                         {"outputs":[{"status":"success","token_count":14}]}
+                                         """)));
+
+        DialTokenCounter counter = new(new DialTokenizeClient(
+            httpClient,
+            new Uri("https://dial.example.com"),
+            "qwen3.6-27b-awq"));
+
+        var count = await counter.CountMessagesAsync([new ChatMessage(ChatRole.User, "hello world")]);
+        Assert.Equal(14, count);
+    }
+
+    [Fact]
+    public void SerializeRequest_MatchesDialShape()
+    {
+        DialTokenizeRequest request = new()
+        {
+            Inputs =
+            [
+                DialTokenizeInput.FromString("hello"),
+                DialTokenizeInput.FromRequest(new DialTokenizeRequestPayload
+                {
+                    Messages = [new DialTokenizeMessage { Role = "user", Content = "hello world" }],
+                }),
+            ],
+        };
+
+        var json = JsonSerializer.Serialize(request, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        using var document = JsonDocument.Parse(json);
+
+        var inputs = document.RootElement.GetProperty("inputs");
+        Assert.Equal("string", inputs[0].GetProperty("type").GetString());
+        Assert.Equal("hello", inputs[0].GetProperty("value").GetString());
+        Assert.Equal("request", inputs[1].GetProperty("type").GetString());
+        Assert.Equal("hello world",
+            inputs[1].GetProperty("value").GetProperty("messages")[0].GetProperty("content").GetString());
+    }
+
+    [Fact]
+    public async Task CountMessagesAsync_AppendsUserTailWhenHistoryEndsWithAssistant()
+    {
+        string? body = null;
+        using var httpClient = CreateClient(async (request, ct) =>
+        {
+            body = await request.Content!.ReadAsStringAsync(ct);
+            return JsonResponse("""
+                                {"outputs":[{"status":"success","token_count":42}]}
+                                """);
+        });
+
+        DialTokenCounter counter = new(new DialTokenizeClient(
+            httpClient,
+            new Uri("https://dial.example.com"),
+            "qwen3.6-27b-awq"));
+
+        var count = await counter.CountMessagesAsync(
+        [
+            new ChatMessage(ChatRole.User, "hello"),
+            new ChatMessage(ChatRole.Assistant, "world"),
+        ]);
+
+        Assert.Equal(42, count);
+        Assert.NotNull(body);
+        using var document = JsonDocument.Parse(body);
+        var messages = document.RootElement
+            .GetProperty("inputs")[0]
+            .GetProperty("value")
+            .GetProperty("messages");
+        Assert.Equal(3, messages.GetArrayLength());
+        Assert.Equal("user", messages[2].GetProperty("role").GetString());
+    }
+
+    [Fact]
+    public async Task CountBatchAsync_ReturnsAllOutputs()
+    {
+        using var httpClient = CreateClient((_, _) =>
+            Task.FromResult(JsonResponse("""
+                                         {"outputs":[
+                                           {"status":"success","token_count":1},
+                                           {"status":"success","token_count":14}
+                                         ]}
+                                         """)));
+
+        DialTokenCounter counter = new(new DialTokenizeClient(
+            httpClient,
+            new Uri("https://dial.example.com"),
+            "qwen3.6-27b-awq"));
+
+        var counts = await counter.CountBatchAsync(
+        [
+            DialTokenizeInput.FromString("hello"),
+            DialTokenizeInput.FromRequest(new DialTokenizeRequestPayload
+            {
+                Messages = [new DialTokenizeMessage { Role = "user", Content = "hello world" }],
+            }),
+        ]);
+
+        Assert.Equal([1, 14], counts);
+    }
+
+    private static HttpClient CreateClient(
+        Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler) =>
+        new(new DelegatingHandlerImpl(handler));
+
+    private static HttpResponseMessage JsonResponse(string json) =>
+        new(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+
+    private sealed class DelegatingHandlerImpl(
+        Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler)
+        : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken) =>
+            handler(request, cancellationToken);
+    }
+}

@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Packages.props
+
+      - name: Compute package version
+        id: version
+        shell: bash
+        run: |
+          PREFIX=$(sed -n 's/.*<VersionPrefix>\([^<]*\)<\/VersionPrefix>.*/\1/p' Version.props | head -1)
+          if [[ -z "$PREFIX" ]]; then
+            echo "VersionPrefix not found in Version.props" >&2
+            exit 1
+          fi
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/v}"
+            if [[ "$TAG" != "$PREFIX" ]]; then
+              echo "Tag v$TAG does not match VersionPrefix $PREFIX" >&2
+              exit 1
+            fi
+            echo "package_version=$TAG" >> "$GITHUB_OUTPUT"
+          else
+            DATE=$(date -u +%y%m%d)
+            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restore
+        run: dotnet restore Dial.Sharp.slnx
+
+      - name: Build
+        run: dotnet build Dial.Sharp.slnx -c Release --no-restore -p:Version=${{ steps.version.outputs.package_version }}
+
+      - name: Test
+        run: dotnet test Dial.Sharp.slnx -c Release --no-build --verbosity normal
+
+  publish:
+    needs: build-test
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Packages.props
+
+      - name: Compute package version
+        id: version
+        shell: bash
+        run: |
+          PREFIX=$(sed -n 's/.*<VersionPrefix>\([^<]*\)<\/VersionPrefix>.*/\1/p' Version.props | head -1)
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/v}"
+            if [[ "$TAG" != "$PREFIX" ]]; then
+              echo "Tag v$TAG does not match VersionPrefix $PREFIX" >&2
+              exit 1
+            fi
+            echo "package_version=$TAG" >> "$GITHUB_OUTPUT"
+          else
+            DATE=$(date -u +%y%m%d)
+            echo "package_version=${PREFIX}-preview.${DATE}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pack
+        run: dotnet pack src/Dial.Sharp/Dial.Sharp.csproj -c Release -o artifacts -p:Version=${{ steps.version.outputs.package_version }}
+
+      - name: Publish to NuGet.org
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push artifacts/*.nupkg \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+          if compgen -G "artifacts/*.snupkg" > /dev/null; then
+            dotnet nuget push artifacts/*.snupkg \
+              --api-key "$NUGET_API_KEY" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          fi
