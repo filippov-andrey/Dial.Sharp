@@ -1,5 +1,4 @@
 using Dial.Sharp;
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
 // Web search: hosted tool that lets the model fetch up-to-date information from the web.
