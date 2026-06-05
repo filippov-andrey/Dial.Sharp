@@ -1,21 +1,21 @@
 using Dial.Sharp;
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 
 // Local MCP tools: connect to an MCP server (stdio), expose its tools to a Dial-backed agent.
 // Chat Completions supports local MCP via function calling; Dial.Sharp carries the tool loop.
 //
-// Env: DIAL_ENDPOINT, DIAL_API_KEY, DIAL_DEPLOYMENT (optional)
-// Requires: uvx (uv) or npx on PATH for the calculator MCP server.
+// Env: DIAL_ENDPOINT, DIAL_BEARER_TOKEN, DIAL_DEPLOYMENT (optional)
+// Requires: uvx (uv) on PATH, or `pip install mcp-server-calculator` for python -m fallback.
 
 Uri endpoint = new(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")
-    ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
-DialCredential credential = DialCredential.ApiKey(Environment.GetEnvironmentVariable("DIAL_API_KEY")
-    ?? throw new InvalidOperationException("Set DIAL_API_KEY."));
-string deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "gpt-4o-mini";
+                   ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
+var credential = DialCredential.BearerToken(Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN")
+                                            ?? throw new InvalidOperationException(
+                                                "Set DIAL_BEARER_TOKEN."));
+var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3.6-27b-awq";
 
-(string command, string[] arguments) = ResolveCalculatorServer();
+var (command, arguments) = ResolveCalculatorServer();
 
 await using var mcpClient = await McpClient.CreateAsync(new StdioClientTransport(new()
 {
@@ -34,49 +34,94 @@ if (mcpTools.Count == 0)
 }
 
 using DialClient dial = new(endpoint, credential);
-IChatClient chatClient = new ChatClientBuilder(dial.GetIChatClient(deployment))
+var chatClient = new ChatClientBuilder(dial.GetIChatClient(deployment))
     .UseFunctionInvocation()
     .Build();
 
-ChatClientAgent agent = chatClient.AsAIAgent(
+var agent = chatClient.AsAIAgent(
     instructions: "You are a helpful math assistant. Use MCP calculator tools for arithmetic.",
     name: "DialMcpAgent",
     tools: mcpTools);
 
 Console.WriteLine(await agent.RunAsync("What is 15 * 23 + 45?"));
+return;
 
 static (string Command, string[] Arguments) ResolveCalculatorServer()
 {
-    if (IsCommandAvailable("uvx"))
+    if (TryResolveUvxCommand() is { } uvx)
     {
-        return ("uvx", ["mcp-server-calculator"]);
+        return (uvx, ["mcp-server-calculator"]);
     }
 
-    if (IsCommandAvailable("npx"))
+    if (TryResolvePythonCommand() is { } python && IsPythonModuleAvailable(python, "mcp_server_calculator"))
     {
-        return ("npx", ["-y", "mcp-server-calculator"]);
+        return (python, ["-m", "mcp_server_calculator"]);
     }
 
     throw new InvalidOperationException(
-        "Install uv (uvx) or Node.js (npx) to run the mcp-server-calculator MCP server.");
+        "Install uv (https://docs.astral.sh/uv/) — uvx is expected at %USERPROFILE%\\.local\\bin\\uvx.exe on Windows. " +
+        "Or: pip install mcp-server-calculator for the python -m fallback.");
 }
 
-static bool IsCommandAvailable(string command)
+static string? TryResolveUvxCommand()
+{
+    if (IsExecutableAvailable("uvx", "--version"))
+    {
+        return "uvx";
+    }
+
+    string localUvx = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        ".local",
+        "bin",
+        OperatingSystem.IsWindows() ? "uvx.exe" : "uvx");
+
+    return File.Exists(localUvx) && IsExecutableAvailable(localUvx, "--version") ? localUvx : null;
+}
+
+static string? TryResolvePythonCommand()
+{
+    foreach (string candidate in new[] { "python", "python3" })
+    {
+        if (IsExecutableAvailable(candidate, "--version"))
+        {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
+static bool IsPythonModuleAvailable(string python, string module)
 {
     try
     {
-        using System.Diagnostics.Process process = new()
-        {
-            StartInfo =
-            {
-                FileName = command,
-                Arguments = "--version",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            },
-        };
+        using System.Diagnostics.Process process = new();
+        process.StartInfo.FileName = python;
+        process.StartInfo.Arguments = $"-c \"import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('{module}') else 1)\"";
+        process.StartInfo.RedirectStandardOutput = true;
+        process.StartInfo.RedirectStandardError = true;
+        process.StartInfo.UseShellExecute = false;
+        process.StartInfo.CreateNoWindow = true;
+        return process.Start() && process.WaitForExit(5_000) && process.ExitCode == 0;
+    }
+    catch
+    {
+        return false;
+    }
+}
+
+static bool IsExecutableAvailable(string command, string arguments)
+{
+    try
+    {
+        using System.Diagnostics.Process process = new();
+        process.StartInfo.FileName = command;
+        process.StartInfo.Arguments = arguments;
+        process.StartInfo.RedirectStandardOutput = true;
+        process.StartInfo.RedirectStandardError = true;
+        process.StartInfo.UseShellExecute = false;
+        process.StartInfo.CreateNoWindow = true;
         return process.Start() && process.WaitForExit(5_000) && process.ExitCode == 0;
     }
     catch

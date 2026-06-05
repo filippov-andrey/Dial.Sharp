@@ -5,19 +5,19 @@ using Microsoft.Extensions.AI;
 // Web search: hosted tool that lets the model fetch up-to-date information from the web.
 // Dial.Sharp enables it by mapping HostedWebSearchTool to web_search_options on chat completions.
 //
-// Env: DIAL_ENDPOINT, DIAL_API_KEY, DIAL_DEPLOYMENT (optional)
+// Env: DIAL_ENDPOINT, DIAL_BEARER_TOKEN, DIAL_DEPLOYMENT (optional)
 // Use a deployment that supports web search in your DIAL workspace.
 
 Uri endpoint = new(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")
     ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
-DialCredential credential = DialCredential.ApiKey(Environment.GetEnvironmentVariable("DIAL_API_KEY")
-    ?? throw new InvalidOperationException("Set DIAL_API_KEY."));
-string deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "gpt-4o-mini";
+var credential = DialCredential.BearerToken(Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN")
+                                            ?? throw new InvalidOperationException("Set DIAL_BEARER_TOKEN."));
+var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3.6-27b-awq";
 
 using DialClient dial = new(endpoint, credential);
-IChatClient chatClient = dial.GetIChatClient(deployment);
+var chatClient = dial.GetIChatClient(deployment);
 
-ChatClientAgent agent = chatClient.AsAIAgent(
+var agent = chatClient.AsAIAgent(
     instructions: "You are a helpful assistant that can search the web for current information.",
     name: "DialWebSearchAgent",
     tools: [new HostedWebSearchTool()]);

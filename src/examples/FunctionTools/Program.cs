@@ -1,25 +1,22 @@
 using System.ComponentModel;
 using Dial.Sharp;
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
 // Function tools: custom C# methods the model can call during a conversation.
 // Dial.Sharp maps them to OpenAI function tools on the Chat Completions API.
-//
-// Env: DIAL_ENDPOINT, DIAL_API_KEY, DIAL_DEPLOYMENT (optional, default gpt-4o-mini)
 
 Uri endpoint = new(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")
     ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
-DialCredential credential = DialCredential.ApiKey(Environment.GetEnvironmentVariable("DIAL_API_KEY")
-    ?? throw new InvalidOperationException("Set DIAL_API_KEY."));
-string deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "gpt-4o-mini";
+var credential = DialCredential.BearerToken(Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN")
+                                            ?? throw new InvalidOperationException("Set DIAL_BEARER_TOKEN."));
+var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3.6-27b-awq";
 
 using DialClient dial = new(endpoint, credential);
-IChatClient chatClient = new ChatClientBuilder(dial.GetIChatClient(deployment))
+var chatClient = new ChatClientBuilder(dial.GetIChatClient(deployment))
     .UseFunctionInvocation()
     .Build();
 
-ChatClientAgent agent = chatClient.AsAIAgent(
+var agent = chatClient.AsAIAgent(
     instructions: "You are a helpful assistant. Use tools when needed.",
     name: "DialFunctionToolsAgent",
     tools: [AIFunctionFactory.Create(GetWeather)]);

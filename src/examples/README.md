@@ -20,22 +20,23 @@ Not included (Chat Completions / Dial.Sharp do not wire these hosted tools yet):
 
 ## Prerequisites
 
-Set environment variables (or copy from your DIAL workspace):
+Set environment variables (OIDC Bearer from `~/.arc/credentials/dial-oidc.json` and deployment from `~/.arc/config.json`):
 
-```console
-set DIAL_ENDPOINT=https://your-dial-host/
-set DIAL_API_KEY=your-api-key
-set DIAL_DEPLOYMENT=gpt-4o-mini
+```powershell
+$cred = Get-Content "$env:USERPROFILE\.arc\credentials\dial-oidc.json" | ConvertFrom-Json
+
+$env:DIAL_ENDPOINT = $cred.dialEndpoint
+$env:DIAL_BEARER_TOKEN = $cred.accessToken
+$env:DIAL_DEPLOYMENT = "qwen3.6-27b-awq"
 ```
 
 For **Web Search**, use a DIAL deployment that supports web search for your provider.
 
-For **Local MCP Tools**, install a calculator MCP server runtime (one of):
-
-- [uv](https://docs.astral.sh/uv/) — `uvx mcp-server-calculator`
-- Node.js — `npx -y mcp-server-calculator`
+For **Local MCP Tools**, install [uv](https://docs.astral.sh/uv/) (`uvx mcp-server-calculator`). Fallback: `pip install mcp-server-calculator` and `python -m mcp_server_calculator`.
 
 ## Run
+
+Create `Properties/launchSettings.json` locally (gitignored) or set env vars below. Paste a fresh `accessToken` from `~/.arc/credentials/dial-oidc.json` into `DIAL_BEARER_TOKEN` before running from the IDE.
 
 From the repository root:
 
