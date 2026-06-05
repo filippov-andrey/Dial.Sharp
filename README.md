@@ -6,7 +6,7 @@
 
 **[DIAL](https://dialx.ai/)** (Deterministic Integrator of Applications and Language Models) is EPAM’s open-source AI orchestration platform for building and operating enterprise GenAI applications. It provides a unified, model-agnostic [Core API](https://dialx.ai/dial_api) (OpenAI-compatible for chat and embeddings) plus services for applications, files, tools, access control, and rate limits — so teams can use many LLMs and DIAL apps through one integration layer instead of separate provider SDKs.
 
-**Dial.Sharp** is a .NET package that connects that API to [Microsoft.Extensions.AI](https://learn.microsoft.com/dotnet/ai/microsoft-extensions-ai): `IChatClient` and `IEmbeddingGenerator` for OpenAI-compatible deployments, plus `DialClient` for DIAL-native REST endpoints (catalog, tokenize, MCP, and more).
+**Dial.Sharp** is a .NET package that connects that API to [Microsoft.Extensions.AI](https://learn.microsoft.com/dotnet/ai/microsoft-extensions-ai): `IChatClient` and `IEmbeddingGenerator` for OpenAI-compatible deployments, plus `DialClient` for DIAL-native REST endpoints (catalog, tokenize, MCP, and more). The same `IChatClient` works with [Microsoft Agent Framework](https://learn.microsoft.com/agent-framework/overview/agent-framework-overview) (`ChatClientAgent`).
 
 ## Install the package
 
@@ -26,7 +26,7 @@ Or directly in the C# project file:
 </ItemGroup>
 ```
 
-`ChatClientBuilder`, hosting extensions, caching, and OpenTelemetry middleware require the [Microsoft.Extensions.AI](https://www.nuget.org/packages/Microsoft.Extensions.AI) package (and related hosting/cache/telemetry packages as needed).
+`ChatClientBuilder`, hosting extensions, caching, and OpenTelemetry middleware require the [Microsoft.Extensions.AI](https://www.nuget.org/packages/Microsoft.Extensions.AI) package (and related hosting/cache/telemetry packages as needed). For agents, add [Microsoft.Agents.AI](https://www.nuget.org/packages/Microsoft.Agents.AI) separately (not a dependency of `AI.Dial.Sharp`).
 
 ## Usage Examples
 
@@ -82,6 +82,33 @@ await foreach (var update in client.GetStreamingResponseAsync("What is AI?"))
 {
     Console.Write(update);
 }
+```
+
+### Microsoft Agent Framework
+
+Wrap the DIAL-backed `IChatClient` with [`AsAIAgent`](https://learn.microsoft.com/dotnet/api/microsoft.extensions.ai.chatclientextensions.asaiagent):
+
+```csharp
+using Dial.Sharp;
+using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
+
+IChatClient chatClient =
+    new DialClient(
+        new Uri(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")!),
+        DialCredential.ApiKey(Environment.GetEnvironmentVariable("DIAL_API_KEY")!))
+    .GetIChatClient("gpt-4o-mini");
+
+ChatClientAgent agent = chatClient.AsAIAgent(
+    instructions: "You are a helpful assistant.",
+    name: "DialAgent");
+
+AgentResponse response = await agent.RunAsync("What is AI?");
+Console.WriteLine(response.Text);
+```
+
+```console
+dotnet add package Microsoft.Agents.AI
 ```
 
 ### DIAL thinking models
@@ -379,6 +406,7 @@ int tokens = await counter.CountStringAsync("hello");
 
 - [DIAL Core API](https://dialx.ai/dial_api)
 - [Microsoft.Extensions.AI](https://learn.microsoft.com/dotnet/ai/microsoft-extensions-ai)
+- [Microsoft Agent Framework](https://learn.microsoft.com/agent-framework/overview/agent-framework-overview)
 - [Quickstart - Build an AI chat app with .NET](https://learn.microsoft.com/dotnet/ai/quickstarts/build-chat-app) — follow the guide and replace the sample provider with `DialClient` as shown above
 
 ## Building this repository
