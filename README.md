@@ -111,6 +111,30 @@ Console.WriteLine(response.Text);
 dotnet add package Microsoft.Agents.AI
 ```
 
+### Agent Framework provider support matrix
+
+Dial.Sharp exposes DIAL deployments through `IChatClient` on the OpenAI **Chat Completions** API. The matrix below follows the [Agent Framework tools overview](https://learn.microsoft.com/en-us/agent-framework/agents/tools/?pivots=programming-language-csharp) and shows which [tool types](https://learn.microsoft.com/en-us/agent-framework/agents/tools/?pivots=programming-language-csharp#tool-types) work with `ChatClientAgent` backed by `DialClient`.
+
+| Tool Type | Dial (Chat Completions) |
+| --- | --- |
+| Function Tools | ✅ |
+| Code Interpreter | ❌ |
+| File Search | ❌ |
+| Web Search | ✅ |
+| Hosted MCP Tools | ❌ |
+| Local MCP Tools | ✅ |
+
+This matches the **Chat Completion** column in the [Agent Framework provider support matrix](https://learn.microsoft.com/en-us/agent-framework/agents/tools/?pivots=programming-language-csharp#provider-support-matrix): hosted tools such as code interpreter, file search, and hosted MCP require the OpenAI Responses API, which Dial.Sharp does not use today.
+
+**Notes**
+
+- **Function tools** and **local MCP tools** need `ChatClientBuilder.UseFunctionInvocation()` (or equivalent agent middleware) so tool calls are executed and results are sent back to the model.
+- **Web search** requires `HostedWebSearchTool` in `ChatOptions.Tools` / `AsAIAgent(..., tools: ...)` and a DIAL deployment whose upstream model supports web search.
+- **Tool approval** is an Agent Framework feature (not provider-specific) and works with Dial when function invocation runs locally via `Microsoft.Extensions.AI`.
+- DIAL also exposes separate REST endpoints — `DialClient.CodeInterpreter`, `DialClient.Mcp`, `DialClient.Files` — that are outside this Agent Framework tool matrix. See [DIAL Core API](https://dialx.ai/dial_api).
+
+Runnable samples for supported tool types: [`src/examples/`](src/examples/).
+
 ### DIAL thinking models
 
 ```csharp
