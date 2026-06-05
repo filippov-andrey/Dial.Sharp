@@ -20,15 +20,7 @@ Not included (Chat Completions / Dial.Sharp do not wire these hosted tools yet):
 
 ## Prerequisites
 
-Set environment variables (OIDC Bearer from `~/.arc/credentials/dial-oidc.json` and deployment from `~/.arc/config.json`):
-
-```powershell
-$cred = Get-Content "$env:USERPROFILE\.arc\credentials\dial-oidc.json" | ConvertFrom-Json
-
-$env:DIAL_ENDPOINT = $cred.dialEndpoint
-$env:DIAL_BEARER_TOKEN = $cred.accessToken
-$env:DIAL_DEPLOYMENT = "qwen3.6-27b-awq"
-```
+Set `DIAL_ENDPOINT`, `DIAL_BEARER_TOKEN`, and optionally `DIAL_DEPLOYMENT` (default `qwen3.6-27b-awq`).
 
 For **Web Search**, use a DIAL deployment that supports web search for your provider.
 
@@ -36,7 +28,7 @@ For **Local MCP Tools**, install [uv](https://docs.astral.sh/uv/) (`uvx mcp-serv
 
 ## Run
 
-Create `Properties/launchSettings.json` locally (gitignored) or set env vars below. Paste a fresh `accessToken` from `~/.arc/credentials/dial-oidc.json` into `DIAL_BEARER_TOKEN` before running from the IDE.
+Create `Properties/launchSettings.json` locally (gitignored) or set the env vars above before running from the IDE.
 
 From the repository root:
 
