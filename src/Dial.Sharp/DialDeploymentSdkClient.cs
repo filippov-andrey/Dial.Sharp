@@ -26,6 +26,20 @@ internal static class DialDeploymentSdkClient
         CreateSdkClient(endpoint, credential, options, httpClient, deployment, options.EmbeddingsApiVersion)
             .GetEmbeddingClient(deployment);
 
+    internal static DialAudioClient CreateAudioClient(
+        Uri endpoint,
+        DialCredential credential,
+        DialClientOptions options,
+        HttpClient httpClient,
+        string deployment)
+    {
+        Uri deploymentEndpoint =
+            DialEndpointUriBuilder.BuildDeploymentEndpoint(endpoint, deployment, options.AudioApiVersion);
+        OpenAIClientOptions clientOptions = BuildClientOptions(options, httpClient, deploymentEndpoint);
+        OpenAIClient sdkClient = CreateSdkClient(credential, clientOptions);
+        return new DialAudioClient(DialSdkAccess.ResolvePipeline(sdkClient), deployment, clientOptions);
+    }
+
     private static OpenAIClient CreateSdkClient(
         Uri endpoint,
         DialCredential credential,
@@ -35,6 +49,15 @@ internal static class DialDeploymentSdkClient
         string apiVersion)
     {
         Uri deploymentEndpoint = DialEndpointUriBuilder.BuildDeploymentEndpoint(endpoint, deployment, apiVersion);
+        OpenAIClientOptions clientOptions = BuildClientOptions(options, httpClient, deploymentEndpoint);
+        return CreateSdkClient(credential, clientOptions);
+    }
+
+    private static OpenAIClientOptions BuildClientOptions(
+        DialClientOptions options,
+        HttpClient httpClient,
+        Uri deploymentEndpoint)
+    {
         OpenAIClientOptions clientOptions = new()
         {
             Endpoint = deploymentEndpoint,
@@ -43,7 +66,11 @@ internal static class DialDeploymentSdkClient
         };
 
         clientOptions.RetryPolicy = new ClientRetryPolicy(options.MaxRetries);
+        return clientOptions;
+    }
 
+    private static OpenAIClient CreateSdkClient(DialCredential credential, OpenAIClientOptions clientOptions)
+    {
         if (credential.Kind == DialCredentialKind.BearerToken)
         {
             AuthenticationPolicy authPolicy =

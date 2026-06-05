@@ -11,6 +11,8 @@ internal static class DialTestHost
 
     internal const string EmbeddingDeployment = "text-embedding-3-small";
 
+    internal const string AudioDeployment = "qwen3-asr";
+
     internal static DialClient CreateDialClient(
         HttpMessageHandler handler,
         DialCredential? credential = null) =>
@@ -27,6 +29,12 @@ internal static class DialTestHost
         DialCredential? credential = null,
         string deployment = EmbeddingDeployment) =>
         CreateDialClient(handler, credential).GetIEmbeddingGenerator(deployment);
+
+    internal static ISpeechToTextClient CreateSpeechToTextClient(
+        HttpMessageHandler handler,
+        DialCredential? credential = null,
+        string deployment = AudioDeployment) =>
+        CreateDialClient(handler, credential).GetISpeechToTextClient(deployment);
 
     internal static string ChatCompletionJson(string content = "AI is machine intelligence.") =>
         $$"""

@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using OpenAI.Audio;
 using OpenAI.Chat;
 using OpenAI.Embeddings;
 
@@ -83,6 +84,14 @@ public static class DialClientExtensions
     {
         ArgumentNullException.ThrowIfNull(embeddingClient);
         return new DialEmbeddingGenerator(embeddingClient, defaultModelDimensions, requestPolicies);
+    }
+
+    public static ISpeechToTextClient AsISpeechToTextClient(
+        this AudioClient audioClient,
+        DialRequestPolicies? requestPolicies = null)
+    {
+        ArgumentNullException.ThrowIfNull(audioClient);
+        return new DialSpeechToTextClient(audioClient, requestPolicies);
     }
 
     internal static bool? HasStrict(IReadOnlyDictionary<string, object?>? additionalProperties) =>

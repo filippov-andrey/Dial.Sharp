@@ -6,7 +6,7 @@
 
 **[DIAL](https://dialx.ai/)** (Deterministic Integrator of Applications and Language Models) is EPAM’s open-source AI orchestration platform for building and operating enterprise GenAI applications. It provides a unified, model-agnostic [Core API](https://dialx.ai/dial_api) (OpenAI-compatible for chat and embeddings) plus services for applications, files, tools, access control, and rate limits — so teams can use many LLMs and DIAL apps through one integration layer instead of separate provider SDKs.
 
-**Dial.Sharp** is a .NET package that connects that API to [Microsoft.Extensions.AI](https://learn.microsoft.com/dotnet/ai/microsoft-extensions-ai): `IChatClient` and `IEmbeddingGenerator` for OpenAI-compatible deployments, plus `DialClient` for DIAL-native REST endpoints (catalog, tokenize, MCP, and more). The same `IChatClient` works with [Microsoft Agent Framework](https://learn.microsoft.com/agent-framework/overview/agent-framework-overview) (`ChatClientAgent`).
+**Dial.Sharp** is a .NET package that connects that API to [Microsoft.Extensions.AI](https://learn.microsoft.com/dotnet/ai/microsoft-extensions-ai): `IChatClient`, `IEmbeddingGenerator`, and `ISpeechToTextClient` for OpenAI-compatible deployments, plus `DialClient` for DIAL-native REST endpoints (catalog, tokenize, MCP, and more). The same `IChatClient` works with [Microsoft Agent Framework](https://learn.microsoft.com/agent-framework/overview/agent-framework-overview) (`ChatClientAgent`).
 
 ## Install the package
 
@@ -133,7 +133,7 @@ This matches the **Chat Completion** column in the [Agent Framework provider sup
 - **Tool approval** is an Agent Framework feature (not provider-specific) and works with Dial when function invocation runs locally via `Microsoft.Extensions.AI`.
 - DIAL also exposes separate REST endpoints — `DialClient.CodeInterpreter`, `DialClient.Mcp`, `DialClient.Files` — that are outside this Agent Framework tool matrix. See [DIAL Core API](https://dialx.ai/dial_api).
 
-Runnable samples for supported tool types: [`src/examples/`](src/examples/).
+Runnable samples for supported tool types and speech-to-text: [`src/examples/`](src/examples/) (including [SpeechToText](src/examples/SpeechToText/) for real-time microphone dictation).
 
 ### DIAL thinking models
 
@@ -408,6 +408,39 @@ app.MapPost("/embedding", async (IEmbeddingGenerator<string, Embedding<float>> c
 });
 
 app.Run();
+```
+
+### Speech-to-text (DIAL ASR)
+
+DIAL ASR deployments (for example `qwen3-asr`) transcribe audio through **chat completions** with `custom_content.attachments`, not the OpenAI `/audio/transcriptions` endpoint. Dial.Sharp maps them to [`ISpeechToTextClient`](https://learn.microsoft.com/dotnet/api/microsoft.extensions.ai.ispeechtotextclient):
+
+```csharp
+using Dial.Sharp;
+using Microsoft.Extensions.AI;
+using OpenAI.Audio;
+
+ISpeechToTextClient speechToText =
+    new DialClient(
+        new Uri(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")!),
+        DialCredential.ApiKey(Environment.GetEnvironmentVariable("DIAL_API_KEY")!))
+    .GetISpeechToTextClient("qwen3-asr");
+
+await using var audio = File.OpenRead("sample.wav");
+var response = await speechToText.GetTextAsync(audio, new SpeechToTextOptions
+{
+    RawRepresentationFactory = _ => new AudioTranscriptionOptions
+    {
+        Prompt = "Transcribe this audio.",
+    },
+});
+
+Console.WriteLine(response.Text);
+```
+
+For real-time dictation from the microphone (cross-platform via PortAudio), run the [SpeechToText example](src/examples/SpeechToText/):
+
+```console
+dotnet run --project src/examples/SpeechToText
 ```
 
 ### DIAL REST APIs
