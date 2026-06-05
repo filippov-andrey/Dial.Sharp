@@ -6,3 +6,6 @@ obj/
 TestResults/
 artifacts/
 .DS_Store
+
+# Local IDE run profiles (Bearer tokens)
+src/examples/**/Properties/launchSettings.json

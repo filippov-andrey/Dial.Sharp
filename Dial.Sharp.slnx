@@ -2,6 +2,11 @@
   <Folder Name="/src/">
     <Project Path="src/Dial.Sharp/Dial.Sharp.csproj" />
   </Folder>
+  <Folder Name="/src/examples/">
+    <Project Path="src/examples/FunctionTools/FunctionTools.csproj" />
+    <Project Path="src/examples/WebSearch/WebSearch.csproj" />
+    <Project Path="src/examples/LocalMcpTools/LocalMcpTools.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Dial.Sharp.Tests/Dial.Sharp.Tests.csproj" />
   </Folder>
