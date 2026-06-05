@@ -73,6 +73,11 @@ public sealed class DialClient : IDisposable
     public DialTokenizeClient GetTokenizeClient(string deployment) =>
         new(_httpClient, _endpoint, deployment);
 
+    public ISpeechToTextClient GetISpeechToTextClient(string deployment) =>
+        DialDeploymentSdkClient
+            .CreateAudioClient(_endpoint, _credential, _options, _httpClient, deployment)
+            .AsISpeechToTextClient(_requestPolicies);
+
     public void Dispose()
     {
         if (_ownsHttpClient)

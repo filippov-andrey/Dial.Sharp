@@ -6,6 +6,7 @@
     <Project Path="src/examples/FunctionTools/FunctionTools.csproj" />
     <Project Path="src/examples/WebSearch/WebSearch.csproj" />
     <Project Path="src/examples/LocalMcpTools/LocalMcpTools.csproj" />
+    <Project Path="src/examples/SpeechToText/SpeechToText.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Dial.Sharp.Tests/Dial.Sharp.Tests.csproj" />
