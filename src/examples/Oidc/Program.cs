@@ -1,3 +1,5 @@
+using Dial.Sharp.Auth;
+using Dial.Sharp.DependencyInjection;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -19,7 +21,7 @@ services.AddDialClient(endpoint)
     });
 services.AddDialChatClient(deployment);
 
-using var provider = services.BuildServiceProvider();
+await using var provider = services.BuildServiceProvider();
 var chatClient = provider.GetRequiredService<IChatClient>();
 
 Console.WriteLine("A browser window will open for sign-in on the first request...");

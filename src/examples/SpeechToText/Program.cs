@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using Dial.Sharp;
+using Dial.Sharp.DependencyInjection;
 using Dial.Sharp.Examples.SpeechToText;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +20,7 @@ var endpoint = new Uri(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")
     ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
 var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3-asr";
 
-using var provider = BuildProvider(endpoint);
+await using var provider = BuildProvider(endpoint);
 var dial = provider.GetRequiredService<DialClient>();
 var speechToText = dial.GetISpeechToTextClient(deployment);
 var options = new SpeechToTextOptions

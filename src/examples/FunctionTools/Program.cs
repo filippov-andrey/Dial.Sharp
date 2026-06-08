@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Dial.Sharp.DependencyInjection;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,7 +15,7 @@ var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3
 var services = new ServiceCollection();
 services.AddDialClient(endpoint).WithBearerToken(token);
 services.AddDialChatClient(deployment).UseFunctionInvocation();
-using var provider = services.BuildServiceProvider();
+await using var provider = services.BuildServiceProvider();
 var chatClient = provider.GetRequiredService<IChatClient>();
 
 var agent = chatClient.AsAIAgent(

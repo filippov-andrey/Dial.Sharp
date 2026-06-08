@@ -1,9 +1,8 @@
 using System.ClientModel;
-using Dial.Sharp;
-using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace Microsoft.Extensions.DependencyInjection;
+namespace Dial.Sharp.DependencyInjection;
 
 /// <summary>DI extensions for registering <see cref="DialClient"/> and its Microsoft.Extensions.AI clients.</summary>
 public static class DialServiceCollectionExtensions

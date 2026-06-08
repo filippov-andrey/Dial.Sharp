@@ -1,7 +1,8 @@
-using Dial.Sharp.Auth;
+using Dial.Sharp.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace Microsoft.Extensions.DependencyInjection;
+namespace Dial.Sharp.Auth;
 
 /// <summary>DI extensions that attach interactive OIDC bearer authentication to a DIAL client.</summary>
 public static class DialOidcServiceCollectionExtensions

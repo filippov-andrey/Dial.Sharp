@@ -1,3 +1,4 @@
+using Dial.Sharp.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Dial.Sharp.Auth;
@@ -33,7 +34,7 @@ public class DialOidcDependencyInjectionTests
             .ConfigurePrimaryHttpMessageHandler(() => dialHandler);
         services.AddHttpClient(DialOidcServiceCollectionExtensions.IdpHttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => idpHandler);
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
 
         var dial = provider.GetRequiredService<DialClient>();
         await dial.Deployments.GetOpenAiAsync();

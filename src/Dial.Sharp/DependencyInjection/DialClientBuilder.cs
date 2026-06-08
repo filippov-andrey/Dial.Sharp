@@ -1,7 +1,7 @@
 using System.ClientModel;
-using Dial.Sharp;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Microsoft.Extensions.DependencyInjection;
+namespace Dial.Sharp.DependencyInjection;
 
 /// <summary>Fluent builder for configuring a <see cref="DialClient"/> registration in an <see cref="IServiceCollection"/>.</summary>
 public interface IDialClientBuilder

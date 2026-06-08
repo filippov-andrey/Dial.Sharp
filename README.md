@@ -395,6 +395,7 @@ foreach (var prompt in new[] { "What is AI?", "What is .NET?", "What is AI?" })
 
 ```csharp
 using Dial.Sharp;
+using Dial.Sharp.DependencyInjection;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -428,6 +429,8 @@ dotnet add package AI.Dial.Sharp.Auth
 
 ```csharp
 using Dial.Sharp;
+using Dial.Sharp.Auth;
+using Dial.Sharp.DependencyInjection;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 

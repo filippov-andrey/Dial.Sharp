@@ -1,3 +1,4 @@
+using Dial.Sharp.DependencyInjection;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -8,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 // Use a deployment that supports web search in your DIAL workspace.
 
 Uri endpoint = new(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")
-    ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
+                   ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
 var token = Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN")
             ?? throw new InvalidOperationException("Set DIAL_BEARER_TOKEN.");
 var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3.6-27b-awq";
@@ -16,7 +17,7 @@ var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3
 var services = new ServiceCollection();
 services.AddDialClient(endpoint).WithBearerToken(token);
 services.AddDialChatClient(deployment);
-using var provider = services.BuildServiceProvider();
+await using var provider = services.BuildServiceProvider();
 var chatClient = provider.GetRequiredService<IChatClient>();
 
 var agent = chatClient.AsAIAgent(

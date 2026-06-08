@@ -1,3 +1,4 @@
+using Dial.Sharp.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Dial.Sharp;
