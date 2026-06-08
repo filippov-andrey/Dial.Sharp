@@ -1,34 +1,36 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
+using Dial.Sharp;
 using OpenAI;
 using OpenAI.Chat;
 using OpenAI.Embeddings;
 
-namespace Dial.Sharp;
+namespace Dial.Sharp.Inference;
 
 internal static class DialDeploymentSdkClient
 {
     internal static ChatClient CreateChatClient(
         Uri endpoint,
-        DialCredential credential,
+        ApiKeyCredential credential,
+        bool isBearer,
         DialClientOptions options,
         HttpClient httpClient,
         string deployment) =>
-        CreateSdkClient(endpoint, credential, options, httpClient, deployment, options.ChatApiVersion)
+        CreateSdkClient(endpoint, credential, isBearer, options, httpClient, deployment, options.ChatApiVersion)
             .GetChatClient(deployment);
 
     internal static EmbeddingClient CreateEmbeddingClient(
         Uri endpoint,
-        DialCredential credential,
+        ApiKeyCredential credential,
+        bool isBearer,
         DialClientOptions options,
         HttpClient httpClient,
         string deployment) =>
-        CreateSdkClient(endpoint, credential, options, httpClient, deployment, options.EmbeddingsApiVersion)
+        CreateSdkClient(endpoint, credential, isBearer, options, httpClient, deployment, options.EmbeddingsApiVersion)
             .GetEmbeddingClient(deployment);
 
     internal static DialAudioClient CreateAudioClient(
         Uri endpoint,
-        DialCredential credential,
         DialClientOptions options,
         HttpClient httpClient,
         string deployment)
@@ -36,13 +38,13 @@ internal static class DialDeploymentSdkClient
         Uri deploymentEndpoint =
             DialEndpointUriBuilder.BuildDeploymentEndpoint(endpoint, deployment, options.AudioApiVersion);
         OpenAIClientOptions clientOptions = BuildClientOptions(options, httpClient, deploymentEndpoint);
-        OpenAIClient sdkClient = CreateSdkClient(credential, clientOptions);
-        return new DialAudioClient(DialSdkAccess.ResolvePipeline(sdkClient), deployment, clientOptions);
+        return new DialAudioClient(ClientPipeline.Create(clientOptions), deployment, clientOptions);
     }
 
     private static OpenAIClient CreateSdkClient(
         Uri endpoint,
-        DialCredential credential,
+        ApiKeyCredential credential,
+        bool isBearer,
         DialClientOptions options,
         HttpClient httpClient,
         string deployment,
@@ -50,7 +52,7 @@ internal static class DialDeploymentSdkClient
     {
         Uri deploymentEndpoint = DialEndpointUriBuilder.BuildDeploymentEndpoint(endpoint, deployment, apiVersion);
         OpenAIClientOptions clientOptions = BuildClientOptions(options, httpClient, deploymentEndpoint);
-        return CreateSdkClient(credential, clientOptions);
+        return CreateSdkClient(credential, isBearer, clientOptions);
     }
 
     private static OpenAIClientOptions BuildClientOptions(
@@ -69,12 +71,12 @@ internal static class DialDeploymentSdkClient
         return clientOptions;
     }
 
-    private static OpenAIClient CreateSdkClient(DialCredential credential, OpenAIClientOptions clientOptions)
+    private static OpenAIClient CreateSdkClient(ApiKeyCredential credential, bool isBearer, OpenAIClientOptions clientOptions)
     {
-        if (credential.Kind == DialCredentialKind.BearerToken)
+        if (isBearer)
         {
             AuthenticationPolicy authPolicy =
-                ApiKeyAuthenticationPolicy.CreateBearerAuthorizationPolicy(new ApiKeyCredential(credential.Value));
+                ApiKeyAuthenticationPolicy.CreateBearerAuthorizationPolicy(credential);
             return new OpenAIClient(authPolicy, clientOptions);
         }
 

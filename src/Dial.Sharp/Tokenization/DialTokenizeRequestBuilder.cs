@@ -1,6 +1,8 @@
 using System.Text.Json;
+using Dial.Sharp;
+using OpenAI.Chat;
 
-namespace Dial.Sharp;
+namespace Dial.Sharp.Tokenization;
 
 internal static class DialTokenizeRequestBuilder
 {
@@ -73,7 +75,7 @@ internal static class DialTokenizeRequestBuilder
                 continue;
             }
 
-            BinaryData parameters = DialClientExtensions.ToOpenAiFunctionParameters(function, strict: null);
+            BinaryData parameters = function.AsOpenAIChatTool().FunctionParameters;
             result.Add(new DialTokenizeTool
             {
                 Function = new DialTokenizeFunction

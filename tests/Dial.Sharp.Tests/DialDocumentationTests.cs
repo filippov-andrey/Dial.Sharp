@@ -1,3 +1,4 @@
+using System.ClientModel;
 using System.ComponentModel;
 using System.Text;
 using Microsoft.Extensions.Caching.Distributed;
@@ -30,7 +31,8 @@ public class DialDocumentationTests
         using HeaderCapturingHandler handler = new(_ => CatalogResponse());
         using DialClient dial = DialTestHost.CreateDialClient(
             handler,
-            DialCredential.BearerToken("access-token-123"));
+            new ApiKeyCredential("access-token-123"),
+            isBearer: true);
 
         _ = await dial.DeploymentCatalog.GetAsync();
 
@@ -198,7 +200,7 @@ public class DialDocumentationTests
             .UseDistributedCache(cache)
             .Build();
 
-        for (int i = 0; i < 3; i++)
+        for (var i = 0; i < 3; i++)
         {
             await foreach (ChatResponseUpdate _ in client.GetStreamingResponseAsync(prompt))
             {
@@ -218,7 +220,7 @@ public class DialDocumentationTests
         using VerbatimHttpHandler handler = new(input, DialTestHost.ChatCompletionJson());
         using DialClient dial = DialTestHost.CreateDialClient(handler);
 
-        string sourceName = Guid.NewGuid().ToString();
+        var sourceName = Guid.NewGuid().ToString();
         using TracerProvider tracerProvider = Sdk.CreateTracerProviderBuilder()
             .AddSource(sourceName)
             .Build();
@@ -275,30 +277,13 @@ public class DialDocumentationTests
                 .UseDistributedCache(cache)
                 .Build();
 
-        foreach (string prompt in new[] { "What is AI?", "What is .NET?", "What is AI?" })
+        foreach (var prompt in new[] { "What is AI?", "What is .NET?", "What is AI?" })
         {
             GeneratedEmbeddings<Embedding<float>> embeddings = await generator.GenerateAsync([prompt]);
             Assert.False(embeddings[0].Vector.IsEmpty);
         }
 
         Assert.Equal(2, counting.InvocationCount);
-    }
-
-    [Fact]
-    public async Task UsageExamples_RequestPolicies_DialClientSharesPolicyWithIChatClient()
-    {
-        using HeaderCapturingHandler handler = new(_ => new HttpResponseMessage
-        {
-            Content = new StringContent(DialTestHost.ChatCompletionJson("ok")),
-        });
-        using DialClient dial = DialTestHost.CreateDialClient(handler);
-        dial.RequestPolicies.AddPolicy(new DocumentationMarkerPolicy("doc-marker"));
-
-        IChatClient client = dial.GetIChatClient(DialTestHost.ChatDeployment);
-
-        Assert.Same(dial.RequestPolicies, client.GetService<DialRequestPolicies>());
-        await client.GetResponseAsync("hi");
-        Assert.Equal("doc-marker", handler.LastRequest!.Headers.GetValues("X-Documentation-Marker").Single());
     }
 
     [Fact]
@@ -334,11 +319,11 @@ public class DialDocumentationTests
             {"input":["hello"],"model":"text-embedding-3-small"}
             """;
 
-        int chatCalls = 0;
-        int embedCalls = 0;
+        var chatCalls = 0;
+        var embedCalls = 0;
         using HttpClient httpClient = new(new RoutingHandler(request =>
         {
-            string path = request.RequestUri!.AbsolutePath;
+            var path = request.RequestUri!.AbsolutePath;
             if (path.Contains("/embeddings", StringComparison.Ordinal))
             {
                 embedCalls++;
@@ -351,7 +336,7 @@ public class DialDocumentationTests
             return new HttpResponseMessage { Content = new StringContent(DialTestHost.ChatCompletionJson("hello")) };
         }));
 
-        using DialClient dial = new(DialTestHost.Endpoint, DialCredential.ApiKey("key"), httpClient: httpClient);
+        using DialClient dial = new(DialTestHost.Endpoint, new ApiKeyCredential("key"), httpClient: httpClient);
 
         ServiceCollection services = new();
         services.AddSingleton(dial);
@@ -375,11 +360,11 @@ public class DialDocumentationTests
     [Fact]
     public async Task DialNativeApis_DeploymentCatalogAndTokenCounter_WorkThroughDialClient()
     {
-        int catalogCalls = 0;
-        int tokenizeCalls = 0;
+        var catalogCalls = 0;
+        var tokenizeCalls = 0;
         using HttpClient httpClient = new(new RoutingHandler(request =>
         {
-            string path = request.RequestUri!.AbsolutePath;
+            var path = request.RequestUri!.AbsolutePath;
             if (path.Contains("/tokenize", StringComparison.Ordinal))
             {
                 tokenizeCalls++;
@@ -396,17 +381,17 @@ public class DialDocumentationTests
             };
         }));
 
-        using DialClient dial = new(DialTestHost.Endpoint, DialCredential.ApiKey("key"), httpClient: httpClient);
+        using DialClient dial = new(DialTestHost.Endpoint, new ApiKeyCredential("key"), httpClient: httpClient);
 
         DialDeploymentCatalogList catalog = await dial.DeploymentCatalog.GetAsync();
-        DialTokenizeClient tokenize = dial.GetTokenizeClient(DialTestHost.ChatDeployment);
-        DialTokenCounter counter = DialTokenCounter.Create(dial, DialTestHost.ChatDeployment);
+        IDialTokenizeClient tokenize = dial.GetTokenizeClient(DialTestHost.ChatDeployment);
+        IDialTokenCounter counter = dial.GetTokenCounter(DialTestHost.ChatDeployment);
 
         Assert.Equal(1, catalogCalls);
         Assert.Equal("gpt-4o-mini", catalog.Data[0].Id);
         Assert.NotNull(tokenize);
 
-        int tokens = await counter.CountStringAsync("hello");
+        var tokens = await counter.CountStringAsync("hello");
 
         Assert.Equal(1, tokenizeCalls);
         Assert.Equal(2, tokens);
@@ -414,27 +399,6 @@ public class DialDocumentationTests
 
     [Description("Gets the weather")]
     private static string GetWeather() => "It's sunny";
-
-    private sealed class DocumentationMarkerPolicy(string value) : System.ClientModel.Primitives.PipelinePolicy
-    {
-        public override void Process(
-            System.ClientModel.Primitives.PipelineMessage message,
-            IReadOnlyList<System.ClientModel.Primitives.PipelinePolicy> pipeline,
-            int currentIndex)
-        {
-            message.Request.Headers.Set("X-Documentation-Marker", value);
-            ProcessNext(message, pipeline, currentIndex);
-        }
-
-        public override ValueTask ProcessAsync(
-            System.ClientModel.Primitives.PipelineMessage message,
-            IReadOnlyList<System.ClientModel.Primitives.PipelinePolicy> pipeline,
-            int currentIndex)
-        {
-            message.Request.Headers.Set("X-Documentation-Marker", value);
-            return ProcessNextAsync(message, pipeline, currentIndex);
-        }
-    }
 
     private static HttpResponseMessage CatalogResponse() =>
         new() { Content = new StringContent("""{"deployments":[]}""") };

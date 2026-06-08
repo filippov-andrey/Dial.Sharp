@@ -1,19 +1,13 @@
-namespace Dial.Sharp;
+namespace Dial.Sharp.Tokenization;
 
-/// <summary>Counts tokens via DIAL <c>/v1/deployments/{id}/tokenize</c>.</summary>
-public sealed class DialTokenCounter(DialTokenizeClient client, bool tokenizeSupported = true)
+/// <inheritdoc />
+internal sealed class DialTokenCounter(IDialTokenizeClient client, bool tokenizeSupported = true) : IDialTokenCounter
 {
     private bool TokenizeSupported { get; set; } = tokenizeSupported;
-    
-    private readonly DialTokenizeClient _client = client ?? throw new ArgumentNullException(nameof(client));
 
-    public static DialTokenCounter Create(DialClient dial, string deployment, bool tokenizeSupported = true)
-    {
-        ArgumentNullException.ThrowIfNull(dial);
-        ArgumentException.ThrowIfNullOrWhiteSpace(deployment);
-        return new DialTokenCounter(dial.GetTokenizeClient(deployment), tokenizeSupported);
-    }
+    private readonly IDialTokenizeClient _client = client ?? throw new ArgumentNullException(nameof(client));
 
+    /// <inheritdoc />
     public async Task<int> CountStringAsync(string text, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(text);
@@ -26,6 +20,7 @@ public sealed class DialTokenCounter(DialTokenizeClient client, bool tokenizeSup
         return ExtractSingleCount(response);
     }
 
+    /// <inheritdoc />
     public async Task<int> CountRequestAsync(
         DialTokenizeRequestPayload payload,
         CancellationToken cancellationToken = default)
@@ -40,6 +35,7 @@ public sealed class DialTokenCounter(DialTokenizeClient client, bool tokenizeSup
         return ExtractSingleCount(response);
     }
 
+    /// <inheritdoc />
     public async Task<int> CountMessagesAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
@@ -53,6 +49,7 @@ public sealed class DialTokenCounter(DialTokenizeClient client, bool tokenizeSup
         return await CountRequestAsync(payload, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<int[]> CountBatchAsync(
         IEnumerable<DialTokenizeInput> inputs,
         CancellationToken cancellationToken = default)
@@ -82,7 +79,7 @@ public sealed class DialTokenCounter(DialTokenizeClient client, bool tokenizeSup
     private static int EstimateTokens(string? text) =>
         Math.Max(1, ((text?.Length ?? 0) + 3) / 4);
 
-    public static int EstimateMessages(IEnumerable<ChatMessage> messages, ChatOptions? options = null)
+    internal static int EstimateMessages(IEnumerable<ChatMessage> messages, ChatOptions? options = null)
     {
         var total = 0;
         if (options?.Instructions is { Length: > 0 } instructions)

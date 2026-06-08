@@ -1,3 +1,5 @@
+using System.ClientModel;
+
 namespace Dial.Sharp;
 
 public sealed class DialIntegrationTests
@@ -15,11 +17,9 @@ public sealed class DialIntegrationTests
             return;
         }
 
-        var credential = !string.IsNullOrWhiteSpace(apiKey)
-            ? DialCredential.ApiKey(apiKey)
-            : DialCredential.BearerToken(bearer!);
-
-        using DialClient dial = new(new Uri(endpoint!), credential);
+        using DialClient dial = !string.IsNullOrWhiteSpace(apiKey)
+            ? new DialClient(new Uri(endpoint!), new ApiKeyCredential(apiKey))
+            : DialClient.WithBearerToken(new Uri(endpoint!), new ApiKeyCredential(bearer!));
         var chat = dial.GetIChatClient(deployment);
         var response = await chat.GetResponseAsync("Say hello in one word.");
         Assert.NotEmpty(response.Messages);

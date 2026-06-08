@@ -1,23 +1,30 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using OpenAI;
 using OpenAI.Audio;
 
-namespace Dial.Sharp;
+namespace Dial.Sharp.Inference;
 
 /// <summary>
 /// DIAL ASR client that routes transcription through chat completions with
 /// <c>custom_content.attachments</c> instead of the OpenAI <c>/audio/transcriptions</c> API.
+/// It is both an OpenAI <see cref="AudioClient"/> and the Microsoft.Extensions.AI
+/// <see cref="ISpeechToTextClient"/> exposed by <see cref="DialClient.GetISpeechToTextClient"/>.
 /// </summary>
-internal sealed class DialAudioClient : AudioClient
+internal sealed class DialAudioClient : AudioClient, ISpeechToTextClient
 {
+    private const string DefaultFilename = "audio.mp3";
+
     private readonly ClientPipeline _pipeline;
+    private readonly SpeechToTextClientMetadata _metadata;
 
     internal DialAudioClient(ClientPipeline pipeline, string deployment, OpenAIClientOptions options)
         : base(pipeline, deployment, options)
     {
         _pipeline = pipeline;
+        _metadata = new SpeechToTextClientMetadata("dial", Endpoint, Model);
     }
 
     public override async Task<ClientResult<AudioTranscription>> TranscribeAudioAsync(
@@ -60,6 +67,69 @@ internal sealed class DialAudioClient : AudioClient
         string audioFilePath,
         AudioTranscriptionOptions? options = null) =>
         TranscribeAudioAsync(audioFilePath, options).GetAwaiter().GetResult();
+
+    public async Task<SpeechToTextResponse> GetTextAsync(
+        Stream audioSpeechStream,
+        SpeechToTextOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(audioSpeechStream);
+
+        var filename = audioSpeechStream is FileStream fileStream
+            ? Path.GetFileName(fileStream.Name)
+            : DefaultFilename;
+
+        var transcription = (await TranscribeAudioAsync(
+                audioSpeechStream, filename, ToTranscriptionOptions(options), cancellationToken)
+            .ConfigureAwait(false)).Value;
+
+        return new SpeechToTextResponse(transcription.Text)
+        {
+            RawRepresentation = transcription,
+            ModelId = options?.ModelId ?? Model,
+        };
+    }
+
+    public async IAsyncEnumerable<SpeechToTextResponseUpdate> GetStreamingTextAsync(
+        Stream audioSpeechStream,
+        SpeechToTextOptions? options = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var response =
+            await GetTextAsync(audioSpeechStream, options, cancellationToken).ConfigureAwait(false);
+
+        foreach (var update in response.ToSpeechToTextResponseUpdates())
+        {
+            yield return update;
+        }
+    }
+
+    public object? GetService(Type serviceType, object? serviceKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(serviceType);
+
+        return
+            serviceKey is not null ? null :
+            serviceType == typeof(SpeechToTextClientMetadata) ? _metadata :
+            serviceType == typeof(AudioClient) ? this :
+            serviceType.IsInstanceOfType(this) ? this :
+            null;
+    }
+
+    void IDisposable.Dispose()
+    {
+    }
+
+    private AudioTranscriptionOptions ToTranscriptionOptions(SpeechToTextOptions? options)
+    {
+        if (options?.RawRepresentationFactory?.Invoke(this) is not AudioTranscriptionOptions result)
+        {
+            return new AudioTranscriptionOptions { Language = options?.SpeechLanguage };
+        }
+
+        result.Language ??= options.SpeechLanguage;
+        return result;
+    }
 
     private async Task<ClientResult<AudioTranscription>> TranscribeCoreAsync(
         byte[] audioBytes,

@@ -1,3 +1,4 @@
+using System.ClientModel;
 using Dial.Sharp;
 using Microsoft.Extensions.AI;
 
@@ -9,11 +10,11 @@ using Microsoft.Extensions.AI;
 
 Uri endpoint = new(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")
     ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
-var credential = DialCredential.BearerToken(Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN")
+var credential = new ApiKeyCredential(Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN")
                                             ?? throw new InvalidOperationException("Set DIAL_BEARER_TOKEN."));
 var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3.6-27b-awq";
 
-using DialClient dial = new(endpoint, credential);
+using DialClient dial = DialClient.WithBearerToken(endpoint, credential);
 var chatClient = dial.GetIChatClient(deployment);
 
 var agent = chatClient.AsAIAgent(

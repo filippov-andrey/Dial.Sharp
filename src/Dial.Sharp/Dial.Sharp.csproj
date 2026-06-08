@@ -26,7 +26,12 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.AI.Abstractions"/>
+        <PackageReference Include="Microsoft.Extensions.AI.OpenAI"/>
         <PackageReference Include="OpenAI"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Dial.Sharp.Tests"/>
     </ItemGroup>
 
 </Project>

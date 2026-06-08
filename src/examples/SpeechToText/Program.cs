@@ -1,3 +1,4 @@
+using System.ClientModel;
 using System.Threading.Channels;
 using Dial.Sharp;
 using Dial.Sharp.Examples.SpeechToText;
@@ -16,10 +17,9 @@ var audioPath = args.Length > 0
 
 var endpoint = new Uri(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")
     ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
-var credential = ResolveCredential();
 var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3-asr";
 
-using var dial = new DialClient(endpoint, credential);
+using var dial = CreateClient(endpoint);
 var speechToText = dial.GetISpeechToTextClient(deployment);
 var options = new SpeechToTextOptions
 {
@@ -128,16 +128,16 @@ static async Task<string> TranscribePcmAsync(
     return response.Text;
 }
 
-static DialCredential ResolveCredential()
+static DialClient CreateClient(Uri endpoint)
 {
     if (Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN") is { Length: > 0 } bearer)
     {
-        return DialCredential.BearerToken(bearer);
+        return DialClient.WithBearerToken(endpoint, new ApiKeyCredential(bearer));
     }
 
     if (Environment.GetEnvironmentVariable("DIAL_API_KEY") is { Length: > 0 } apiKey)
     {
-        return DialCredential.ApiKey(apiKey);
+        return new DialClient(endpoint, new ApiKeyCredential(apiKey));
     }
 
     throw new InvalidOperationException("Set DIAL_BEARER_TOKEN or DIAL_API_KEY.");

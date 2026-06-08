@@ -1,3 +1,4 @@
+using System.ClientModel;
 using Dial.Sharp;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
@@ -10,7 +11,7 @@ using ModelContextProtocol.Client;
 
 Uri endpoint = new(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")
                    ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
-var credential = DialCredential.BearerToken(Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN")
+var credential = new ApiKeyCredential(Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN")
                                             ?? throw new InvalidOperationException(
                                                 "Set DIAL_BEARER_TOKEN."));
 var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3.6-27b-awq";
@@ -33,7 +34,7 @@ if (mcpTools.Count == 0)
     throw new InvalidOperationException("The MCP server did not expose any tools.");
 }
 
-using DialClient dial = new(endpoint, credential);
+using DialClient dial = DialClient.WithBearerToken(endpoint, credential);
 var chatClient = new ChatClientBuilder(dial.GetIChatClient(deployment))
     .UseFunctionInvocation()
     .Build();
@@ -70,7 +71,7 @@ static string? TryResolveUvxCommand()
         return "uvx";
     }
 
-    string localUvx = Path.Combine(
+    var localUvx = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         ".local",
         "bin",
@@ -81,7 +82,7 @@ static string? TryResolveUvxCommand()
 
 static string? TryResolvePythonCommand()
 {
-    foreach (string candidate in new[] { "python", "python3" })
+    foreach (var candidate in new[] { "python", "python3" })
     {
         if (IsExecutableAvailable(candidate, "--version"))
         {

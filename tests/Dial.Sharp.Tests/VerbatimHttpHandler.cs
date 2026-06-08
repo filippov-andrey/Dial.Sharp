@@ -9,7 +9,7 @@ internal sealed partial class VerbatimHttpHandler(string expectedInput, string e
         CancellationToken cancellationToken)
     {
         Assert.NotNull(request.Content);
-        string actualInput = await request.Content.ReadAsStringAsync(cancellationToken);
+        var actualInput = await request.Content.ReadAsStringAsync(cancellationToken);
         AssertContainsNormalized(expectedInput, actualInput);
         return new HttpResponseMessage { Content = new StringContent(expectedOutput) };
     }
