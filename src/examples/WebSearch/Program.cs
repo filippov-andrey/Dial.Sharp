@@ -1,6 +1,5 @@
-using System.ClientModel;
-using Dial.Sharp;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 
 // Web search: hosted tool that lets the model fetch up-to-date information from the web.
 // Dial.Sharp enables it by mapping HostedWebSearchTool to web_search_options on chat completions.
@@ -10,12 +9,15 @@ using Microsoft.Extensions.AI;
 
 Uri endpoint = new(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")
     ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
-var credential = new ApiKeyCredential(Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN")
-                                            ?? throw new InvalidOperationException("Set DIAL_BEARER_TOKEN."));
+var token = Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN")
+            ?? throw new InvalidOperationException("Set DIAL_BEARER_TOKEN.");
 var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3.6-27b-awq";
 
-using DialClient dial = DialClient.WithBearerToken(endpoint, credential);
-var chatClient = dial.GetIChatClient(deployment);
+var services = new ServiceCollection();
+services.AddDialClient(endpoint).WithBearerToken(token);
+services.AddDialChatClient(deployment);
+using var provider = services.BuildServiceProvider();
+var chatClient = provider.GetRequiredService<IChatClient>();
 
 var agent = chatClient.AsAIAgent(
     instructions: "You are a helpful assistant that can search the web for current information.",

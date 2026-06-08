@@ -1,6 +1,5 @@
-using System.ClientModel;
-using Dial.Sharp;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Client;
 
 // Local MCP tools: connect to an MCP server (stdio), expose its tools to a Dial-backed agent.
@@ -11,9 +10,8 @@ using ModelContextProtocol.Client;
 
 Uri endpoint = new(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")
                    ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
-var credential = new ApiKeyCredential(Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN")
-                                            ?? throw new InvalidOperationException(
-                                                "Set DIAL_BEARER_TOKEN."));
+var token = Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN")
+            ?? throw new InvalidOperationException("Set DIAL_BEARER_TOKEN.");
 var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3.6-27b-awq";
 
 var (command, arguments) = ResolveCalculatorServer();
@@ -34,10 +32,11 @@ if (mcpTools.Count == 0)
     throw new InvalidOperationException("The MCP server did not expose any tools.");
 }
 
-using DialClient dial = DialClient.WithBearerToken(endpoint, credential);
-var chatClient = new ChatClientBuilder(dial.GetIChatClient(deployment))
-    .UseFunctionInvocation()
-    .Build();
+var services = new ServiceCollection();
+services.AddDialClient(endpoint).WithBearerToken(token);
+services.AddDialChatClient(deployment).UseFunctionInvocation();
+using var provider = services.BuildServiceProvider();
+var chatClient = provider.GetRequiredService<IChatClient>();
 
 var agent = chatClient.AsAIAgent(
     instructions: "You are a helpful math assistant. Use MCP calculator tools for arithmetic.",

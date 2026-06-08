@@ -1,8 +1,8 @@
-using System.ClientModel;
 using System.Threading.Channels;
 using Dial.Sharp;
 using Dial.Sharp.Examples.SpeechToText;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using OpenAI.Audio;
 
 // Speech-to-text: transcribe audio with a DIAL ASR deployment (e.g. Qwen3-ASR).
@@ -19,7 +19,8 @@ var endpoint = new Uri(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")
     ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
 var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3-asr";
 
-using var dial = CreateClient(endpoint);
+using var provider = BuildProvider(endpoint);
+var dial = provider.GetRequiredService<DialClient>();
 var speechToText = dial.GetISpeechToTextClient(deployment);
 var options = new SpeechToTextOptions
 {
@@ -128,17 +129,23 @@ static async Task<string> TranscribePcmAsync(
     return response.Text;
 }
 
-static DialClient CreateClient(Uri endpoint)
+static ServiceProvider BuildProvider(Uri endpoint)
 {
+    var services = new ServiceCollection();
+    var builder = services.AddDialClient(endpoint);
+
     if (Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN") is { Length: > 0 } bearer)
     {
-        return DialClient.WithBearerToken(endpoint, new ApiKeyCredential(bearer));
+        builder.WithBearerToken(bearer);
     }
-
-    if (Environment.GetEnvironmentVariable("DIAL_API_KEY") is { Length: > 0 } apiKey)
+    else if (Environment.GetEnvironmentVariable("DIAL_API_KEY") is { Length: > 0 } apiKey)
     {
-        return new DialClient(endpoint, new ApiKeyCredential(apiKey));
+        builder.WithApiKey(apiKey);
+    }
+    else
+    {
+        throw new InvalidOperationException("Set DIAL_BEARER_TOKEN or DIAL_API_KEY.");
     }
 
-    throw new InvalidOperationException("Set DIAL_BEARER_TOKEN or DIAL_API_KEY.");
+    return services.BuildServiceProvider();
 }
