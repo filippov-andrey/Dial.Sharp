@@ -1,3 +1,4 @@
+using System.ClientModel;
 using System.Text.Json;
 
 namespace Dial.Sharp;
@@ -15,24 +16,31 @@ internal static class DialTestHost
 
     internal static DialClient CreateDialClient(
         HttpMessageHandler handler,
-        DialCredential? credential = null) =>
-        new(Endpoint, credential ?? DialCredential.ApiKey("test-api-key"), httpClient: new HttpClient(handler));
+        ApiKeyCredential? credential = null,
+        bool isBearer = false)
+    {
+        ApiKeyCredential cred = credential ?? new ApiKeyCredential("test-api-key");
+        HttpClient httpClient = new(handler);
+        return isBearer
+            ? DialClient.WithBearerToken(Endpoint, cred, httpClient: httpClient)
+            : new DialClient(Endpoint, cred, httpClient: httpClient);
+    }
 
     internal static IChatClient CreateChatClient(
         HttpMessageHandler handler,
-        DialCredential? credential = null,
+        ApiKeyCredential? credential = null,
         string deployment = ChatDeployment) =>
         CreateDialClient(handler, credential).GetIChatClient(deployment);
 
     internal static IEmbeddingGenerator<string, Embedding<float>> CreateEmbeddingGenerator(
         HttpMessageHandler handler,
-        DialCredential? credential = null,
+        ApiKeyCredential? credential = null,
         string deployment = EmbeddingDeployment) =>
         CreateDialClient(handler, credential).GetIEmbeddingGenerator(deployment);
 
     internal static ISpeechToTextClient CreateSpeechToTextClient(
         HttpMessageHandler handler,
-        DialCredential? credential = null,
+        ApiKeyCredential? credential = null,
         string deployment = AudioDeployment) =>
         CreateDialClient(handler, credential).GetISpeechToTextClient(deployment);
 

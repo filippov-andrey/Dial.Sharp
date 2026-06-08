@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <RootNamespace>Dial.Sharp.Auth</RootNamespace>
+        <AssemblyName>Dial.Sharp.Auth</AssemblyName>
+        <PackageId>AI.Dial.Sharp.Auth</PackageId>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <Description>Interactive OIDC (PKCE + refresh) authentication for AI.Dial.Sharp.</Description>
+        <IsPackable>true</IsPackable>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <Authors>Filippov Andrey</Authors>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/filippov-andrey/Dial.Sharp</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/filippov-andrey/Dial.Sharp.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageTags>DIAL;OIDC;OAuth;PKCE;Keycloak;Authentication</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Http"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Dial.Sharp\Dial.Sharp.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Dial.Sharp.Auth.Tests"/>
+    </ItemGroup>
+
+</Project>

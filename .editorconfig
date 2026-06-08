@@ -1,0 +1,11 @@
+root = true
+
+[*.cs]
+# Prefer 'var' for built-in and apparent (simple) types; keep explicit types elsewhere.
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = false:silent
+
+# 'Use var' is a suggestion; never auto-convert var back to an explicit type.
+dotnet_diagnostic.IDE0007.severity = suggestion
+dotnet_diagnostic.IDE0008.severity = none

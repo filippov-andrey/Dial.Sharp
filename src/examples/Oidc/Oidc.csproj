@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Dial.Sharp.Examples.Oidc</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Dial.Sharp\Dial.Sharp.csproj" />
+    <ProjectReference Include="..\..\Dial.Sharp.Auth\Dial.Sharp.Auth.csproj" />
+  </ItemGroup>
+
+</Project>

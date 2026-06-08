@@ -90,10 +90,13 @@ jobs:
           fi
 
       - name: Pack
-        run: >-
-          dotnet pack src/Dial.Sharp/Dial.Sharp.csproj -c Release -o artifacts
-          -p:Version=${{ steps.version.outputs.package_version }}
-          -p:IncludeSymbols=false
+        run: |
+          dotnet pack src/Dial.Sharp/Dial.Sharp.csproj -c Release -o artifacts \
+            -p:Version=${{ steps.version.outputs.package_version }} \
+            -p:IncludeSymbols=false
+          dotnet pack src/Dial.Sharp.Auth/Dial.Sharp.Auth.csproj -c Release -o artifacts \
+            -p:Version=${{ steps.version.outputs.package_version }} \
+            -p:IncludeSymbols=false
 
       - name: Publish to NuGet.org
         env:
@@ -108,7 +111,7 @@ jobs:
 
           VERSION="${{ steps.version.outputs.package_version }}"
 
-          echo "Publishing AI.Dial.Sharp ${VERSION}"
+          echo "Publishing AI.Dial.Sharp and AI.Dial.Sharp.Auth ${VERSION}"
 
           dotnet nuget push artifacts/*.nupkg \
             --api-key "$NUGET_API_KEY" \

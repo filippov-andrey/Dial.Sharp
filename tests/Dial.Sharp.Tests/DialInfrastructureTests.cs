@@ -1,3 +1,5 @@
+using System.ClientModel;
+
 namespace Dial.Sharp;
 
 public class DialEndpointUriBuilderTests
@@ -43,7 +45,7 @@ public class DialClientTests
     [Fact]
     public void Constructor_ExposesNativeClients()
     {
-        using DialClient dial = new(new Uri("https://dial.example.com"), DialCredential.ApiKey("key"));
+        using DialClient dial = new(new Uri("https://dial.example.com"), new ApiKeyCredential("key"));
         Assert.NotNull(dial.Deployments);
         Assert.NotNull(dial.Files);
         Assert.NotNull(dial.Mcp);

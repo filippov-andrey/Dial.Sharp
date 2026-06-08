@@ -1,14 +1,17 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Dial.Sharp/Dial.Sharp.csproj" />
+    <Project Path="src/Dial.Sharp.Auth/Dial.Sharp.Auth.csproj" />
   </Folder>
   <Folder Name="/src/examples/">
     <Project Path="src/examples/FunctionTools/FunctionTools.csproj" />
     <Project Path="src/examples/WebSearch/WebSearch.csproj" />
     <Project Path="src/examples/LocalMcpTools/LocalMcpTools.csproj" />
     <Project Path="src/examples/SpeechToText/SpeechToText.csproj" />
+    <Project Path="src/examples/Oidc/Oidc.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Dial.Sharp.Tests/Dial.Sharp.Tests.csproj" />
+    <Project Path="tests/Dial.Sharp.Auth.Tests/Dial.Sharp.Auth.Tests.csproj" />
   </Folder>
 </Solution>

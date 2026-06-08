@@ -89,7 +89,7 @@ internal static class RealtimeDictation
                     break;
                 }
 
-                if (capture.TryTakeUtterance(out byte[]? pcm) && pcm is not null && pcm.Length >= MinUtteranceBytes)
+                if (capture.TryTakeUtterance(out var pcm) && pcm is not null && pcm.Length >= MinUtteranceBytes)
                 {
                     await writer.WriteAsync(pcm, sessionToken).ConfigureAwait(false);
                 }
@@ -106,7 +106,7 @@ internal static class RealtimeDictation
             stream?.Dispose();
             PortAudio.Terminate();
 
-            if (capture.TryFlush(out byte[]? tail) && tail is not null && tail.Length >= MinUtteranceBytes)
+            if (capture.TryFlush(out var tail) && tail is not null && tail.Length >= MinUtteranceBytes)
             {
                 writer.TryWrite(tail);
             }

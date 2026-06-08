@@ -1,12 +1,13 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Dial.Sharp.Models;
+using Dial.Sharp.Tokenization;
 
 namespace Dial.Sharp;
 
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web,
     UseStringEnumConverter = true,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
-[JsonSerializable(typeof(DialClientExtensions.ToolJson))]
 [JsonSerializable(typeof(IDictionary<string, object?>))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(string[]))]

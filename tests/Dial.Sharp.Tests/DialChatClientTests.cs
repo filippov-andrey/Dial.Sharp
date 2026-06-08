@@ -1,6 +1,9 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
+using System.ComponentModel;
+using System.Text.Json;
 using OpenAI;
+using OpenAI.Chat;
 
 namespace Dial.Sharp;
 
@@ -167,6 +170,105 @@ public class DialChatClientTests
         TextReasoningContent reasoning = Assert.Single(response.Messages.Single().Contents.OfType<TextReasoningContent>());
         Assert.Equal("compare numbers", reasoning.Text);
     }
+
+    [Fact]
+    public async Task ToolCalls_SurfacedAsFunctionCallContent()
+    {
+        using HttpClient httpClient = new(new ToolCallingHttpHandler());
+        using IChatClient client = CreateChatClient(httpClient);
+
+        ChatOptions options = new() { Tools = [AIFunctionFactory.Create(GetWeather)] };
+        ChatResponse response = await client.GetResponseAsync("What's the weather?", options);
+
+        FunctionCallContent call = Assert.Single(
+            response.Messages.SelectMany(m => m.Contents).OfType<FunctionCallContent>());
+        Assert.Equal("GetWeather", call.Name);
+    }
+
+    [Fact]
+    public async Task ToolCalls_RoundTripWithFunctionInvocation_ReturnsFinalAnswer()
+    {
+        using HttpClient httpClient = new(new ToolCallingHttpHandler());
+        using IChatClient client = new ChatClientBuilder(CreateChatClient(httpClient))
+            .UseFunctionInvocation()
+            .Build();
+
+        ChatOptions options = new() { Tools = [AIFunctionFactory.Create(GetWeather)] };
+        ChatResponse response = await client.GetResponseAsync("What's the weather?", options);
+
+        Assert.Contains("sunny", response.Text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Usage_PropagatedFromCompletion()
+    {
+        const string output = """
+            {
+              "id":"chatcmpl-test",
+              "object":"chat.completion",
+              "model":"qwen",
+              "choices":[{"index":0,"message":{"role":"assistant","content":"hi"},"finish_reason":"stop"}],
+              "usage":{"prompt_tokens":5,"completion_tokens":7,"total_tokens":12}
+            }
+            """;
+        InvocationCountingHandler handler = new(_ => new HttpResponseMessage { Content = new StringContent(output) });
+        using HttpClient httpClient = new(handler);
+        using IChatClient client = CreateChatClient(httpClient);
+
+        ChatResponse response = await client.GetResponseAsync("hi");
+
+        Assert.Equal(5, response.Usage?.InputTokenCount);
+        Assert.Equal(7, response.Usage?.OutputTokenCount);
+        Assert.Equal(12, response.Usage?.TotalTokenCount);
+    }
+
+    [Fact]
+    public async Task RawRepresentationFactory_PatchesArbitraryDialFields()
+    {
+        InvocationCountingHandler handler = new(_ => new HttpResponseMessage
+        {
+            Content = new StringContent(DialTestHost.ChatCompletionJson("ok")),
+        });
+        using HttpClient httpClient = new(handler);
+        using IChatClient client = CreateChatClient(httpClient);
+
+        ChatOptions options = new()
+        {
+            RawRepresentationFactory = _ =>
+            {
+                ChatCompletionOptions raw = new();
+                raw.Patch.Set("$.custom_fields"u8, """{"key":"value"}"""u8);
+                return raw;
+            },
+        };
+
+        await client.GetResponseAsync("hello", options);
+
+        Assert.NotNull(handler.LastRequestBody);
+        using JsonDocument doc = JsonDocument.Parse(handler.LastRequestBody!);
+        Assert.Equal("value", doc.RootElement.GetProperty("custom_fields").GetProperty("key").GetString());
+    }
+
+    [Fact]
+    public async Task Instructions_MappedIntoRequestBody()
+    {
+        InvocationCountingHandler handler = new(_ => new HttpResponseMessage
+        {
+            Content = new StringContent(DialTestHost.ChatCompletionJson("ok")),
+        });
+        using HttpClient httpClient = new(handler);
+        using IChatClient client = CreateChatClient(httpClient);
+
+        ChatOptions options = new() { Instructions = "Be brief." };
+        await client.GetResponseAsync([new ChatMessage(ChatRole.User, "hello")], options);
+
+        Assert.NotNull(handler.LastRequestBody);
+        Assert.Contains("Be brief.", handler.LastRequestBody);
+        Assert.Contains("hello", handler.LastRequestBody);
+    }
+
+    [Description("Gets the weather")]
+    private static string GetWeather() => "It's sunny";
 
     private static IChatClient CreateChatClient(HttpClient httpClient)
     {

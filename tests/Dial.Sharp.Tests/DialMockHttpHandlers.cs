@@ -26,7 +26,7 @@ internal sealed class InvocationCountingHandler(Func<int, HttpResponseMessage> r
             LastRequestBody = await request.Content.ReadAsStringAsync(cancellationToken);
         }
 
-        int invocation = Interlocked.Increment(ref _count);
+        var invocation = Interlocked.Increment(ref _count);
         return respond(invocation);
     }
 }
@@ -35,8 +35,8 @@ internal sealed class ToolCallingHttpHandler : DelegatingHandler
 {
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        string body = await request.Content!.ReadAsStringAsync(cancellationToken);
-        string json = body.Contains("\"role\":\"tool\"", StringComparison.Ordinal)
+        var body = await request.Content!.ReadAsStringAsync(cancellationToken);
+        var json = body.Contains("\"role\":\"tool\"", StringComparison.Ordinal)
             ? DialTestHost.ChatCompletionJson("It's sunny")
             : """
               {
