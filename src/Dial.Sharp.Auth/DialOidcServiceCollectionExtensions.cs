@@ -24,7 +24,7 @@ public static class DialOidcServiceCollectionExtensions
 
         builder.Services.AddHttpClient(IdpHttpClientName);
         builder.Services.TryAddSingleton<IDialTokenStore, InMemoryDialTokenStore>();
-        builder.Services.TryAddSingleton<IOidcBrowser, SystemBrowser>();
+        builder.Services.TryAddSingleton<IOidcBrowser>(_ => new SystemBrowser(options.LoginTimeout));
         builder.Services.TryAddSingleton(sp =>
         {
             var idpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient(IdpHttpClientName);
@@ -41,5 +41,43 @@ public static class DialOidcServiceCollectionExtensions
 
         builder.UseExternalAuth();
         return builder;
+    }
+
+    /// <summary>Replaces the default in-memory <see cref="IDialTokenStore"/> registered by <see cref="AddDialOidc"/>.</summary>
+    public static IDialClientBuilder UseDialTokenStore<TStore>(this IDialClientBuilder builder)
+        where TStore : class, IDialTokenStore
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ReplaceTokenStore(builder.Services, static sp => sp.GetRequiredService<TStore>());
+        builder.Services.TryAddSingleton<TStore>();
+        return builder;
+    }
+
+    /// <summary>Replaces the default in-memory <see cref="IDialTokenStore"/> registered by <see cref="AddDialOidc"/>.</summary>
+    public static IDialClientBuilder UseDialTokenStore(this IDialClientBuilder builder, IDialTokenStore store)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(store);
+        ReplaceTokenStore(builder.Services, _ => store);
+        return builder;
+    }
+
+    /// <summary>Replaces the default in-memory <see cref="IDialTokenStore"/> registered by <see cref="AddDialOidc"/>.</summary>
+    public static IDialClientBuilder UseDialTokenStore(
+        this IDialClientBuilder builder,
+        Func<IServiceProvider, IDialTokenStore> factory)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(factory);
+        ReplaceTokenStore(builder.Services, factory);
+        return builder;
+    }
+
+    private static void ReplaceTokenStore(
+        IServiceCollection services,
+        Func<IServiceProvider, IDialTokenStore> factory)
+    {
+        services.RemoveAll<IDialTokenStore>();
+        services.AddSingleton(factory);
     }
 }

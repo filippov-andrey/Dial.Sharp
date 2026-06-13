@@ -12,6 +12,9 @@ public sealed class DialOidcOptions
     /// <summary>Client secret for confidential clients (optional).</summary>
     public string? ClientSecret { get; set; }
 
+    /// <summary>Display name sent in dynamic client registration payloads.</summary>
+    public string ClientName { get; set; } = "Dial CLI";
+
     /// <summary>Space-separated OIDC scopes. Must include <c>openid</c>.</summary>
     public string Scopes { get; set; } = "openid profile offline_access dial-api";
 
@@ -23,4 +26,7 @@ public sealed class DialOidcOptions
 
     /// <summary>How long before access-token expiry a refresh is triggered.</summary>
     public TimeSpan RefreshSkew { get; set; } = TimeSpan.FromSeconds(60);
+
+    /// <summary>Maximum time to wait for the user to complete browser sign-in.</summary>
+    public TimeSpan LoginTimeout { get; set; } = TimeSpan.FromMinutes(5);
 }

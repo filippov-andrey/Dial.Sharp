@@ -6,5 +6,6 @@ namespace Dial.Sharp.Auth.Internal;
 [JsonSerializable(typeof(OidcDiscoveryDocument))]
 [JsonSerializable(typeof(OidcTokenResponse))]
 [JsonSerializable(typeof(DcrRequest))]
+[JsonSerializable(typeof(KeycloakDefaultDcrRequest))]
 [JsonSerializable(typeof(DcrResponse))]
 internal sealed partial class DialAuthJsonContext : JsonSerializerContext;
