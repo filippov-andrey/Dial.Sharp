@@ -156,6 +156,81 @@ public class DialOidcSessionTests
     }
 
     [Fact]
+    public async Task GetAccessTokenAsync_NoClientId_FallsBackToKeycloakDefaultRegistration()
+    {
+        const string discovery =
+            """
+            {
+              "issuer":"https://idp",
+              "authorization_endpoint":"https://idp/auth",
+              "token_endpoint":"https://idp/token",
+              "registration_endpoint":"https://idp/realms/test/clients-registrations/openid-connect"
+            }
+            """;
+        var options = new DialOidcOptions { ServerUrl = Server, ClientId = null };
+        var handler = new RoutingHandler((req, _) =>
+        {
+            var url = req.RequestUri!.AbsoluteUri;
+            if (url.EndsWith("/.well-known/openid-configuration"))
+            {
+                return RoutingHandler.Json(discovery);
+            }
+
+            if (url == "https://idp/realms/test/clients-registrations/openid-connect")
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.Forbidden);
+            }
+
+            if (url == "https://idp/realms/test/clients-registrations/default")
+            {
+                return RoutingHandler.Json("""{"clientId":"keycloak-client"}""");
+            }
+
+            return url == "https://idp/token"
+                ? RoutingHandler.Json("""{"access_token":"access-kc","refresh_token":"r","expires_in":3600}""")
+                : new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+        });
+        var browser = new FakeBrowser();
+        using var session = CreateSession(options, handler, browser, new MutableTimeProvider());
+
+        var token = await session.GetAccessTokenAsync();
+
+        Assert.Equal("access-kc", token);
+        Assert.Contains(
+            handler.Calls,
+            c => c.Uri.AbsoluteUri == "https://idp/realms/test/clients-registrations/openid-connect");
+        Assert.Contains(
+            handler.Calls,
+            c => c.Uri.AbsoluteUri == "https://idp/realms/test/clients-registrations/default");
+        Assert.Contains("client_id=keycloak-client", browser.AuthorizationUrl!.Query);
+    }
+
+    [Fact]
+    public async Task GetAccessTokenAsync_LoadsClientIdFromTokenStore()
+    {
+        var time = new MutableTimeProvider { Now = DateTimeOffset.UtcNow };
+        var store = new InMemoryDialTokenStore();
+        await store.SaveAsync(new DialTokenSet("access-old", "refresh-old", time.Now.AddSeconds(-10), "stored-client"));
+        var options = new DialOidcOptions { ServerUrl = Server, ClientId = null };
+        var handler = new RoutingHandler((req, _) =>
+        {
+            var url = req.RequestUri!.AbsoluteUri;
+            return url.EndsWith("/.well-known/openid-configuration")
+                ? RoutingHandler.Json(Discovery)
+                : RoutingHandler.Json("""{"access_token":"access-2","refresh_token":"refresh-2","expires_in":3600}""");
+        });
+        using var session = CreateSession(options, handler, new FakeBrowser(), time, store);
+
+        var token = await session.GetAccessTokenAsync();
+
+        Assert.Equal("access-2", token);
+        var call = Assert.Single(handler.Calls, c => c.Uri.AbsoluteUri == "https://idp/token");
+        Assert.Contains("client_id=stored-client", call.Body);
+        var stored = await store.LoadAsync();
+        Assert.Equal("stored-client", stored!.ClientId);
+    }
+
+    [Fact]
     public async Task GetAccessTokenAsync_CachesTokenWithinLifetime()
     {
         var options = new DialOidcOptions { ServerUrl = Server, ClientId = "client" };

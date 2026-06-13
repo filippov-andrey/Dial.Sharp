@@ -45,4 +45,22 @@ public class DialOidcDependencyInjectionTests
         Assert.Contains(idpHandler.Calls, c => c.Uri.AbsoluteUri == "https://idp/token");
         Assert.DoesNotContain(dialHandler.Calls, c => c.Uri.AbsoluteUri.Contains("openid-configuration"));
     }
+
+    [Fact]
+    public void UseDialTokenStore_ReplacesDefaultStore()
+    {
+        var customStore = new InMemoryDialTokenStore();
+        var services = new ServiceCollection();
+        services.AddSingleton<IOidcBrowser>(new FakeBrowser());
+        services.AddDialClient(Server)
+            .AddDialOidc(o =>
+            {
+                o.ServerUrl = Server;
+                o.ClientId = "client";
+            })
+            .UseDialTokenStore(customStore);
+
+        using var provider = services.BuildServiceProvider();
+        Assert.Same(customStore, provider.GetRequiredService<IDialTokenStore>());
+    }
 }

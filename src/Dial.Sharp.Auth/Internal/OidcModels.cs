@@ -40,11 +40,17 @@ internal sealed class OidcTokenResponse
 
 internal sealed class DcrRequest
 {
+    [JsonPropertyName("client_name")]
+    public string? ClientName { get; set; }
+
     [JsonPropertyName("redirect_uris")]
     public required string[] RedirectUris { get; set; }
 
     [JsonPropertyName("response_types")]
     public string[] ResponseTypes { get; set; } = ["code"];
+
+    [JsonPropertyName("application_type")]
+    public string ApplicationType { get; set; } = "native";
 
     [JsonPropertyName("grant_types")]
     public string[] GrantTypes { get; set; } = ["authorization_code", "refresh_token"];
@@ -56,11 +62,55 @@ internal sealed class DcrRequest
     public string? Scope { get; set; }
 }
 
+internal sealed class KeycloakDefaultDcrRequest
+{
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("protocol")]
+    public string Protocol { get; set; } = "openid-connect";
+
+    [JsonPropertyName("publicClient")]
+    public bool PublicClient { get; set; } = true;
+
+    [JsonPropertyName("standardFlowEnabled")]
+    public bool StandardFlowEnabled { get; set; } = true;
+
+    [JsonPropertyName("implicitFlowEnabled")]
+    public bool ImplicitFlowEnabled { get; set; }
+
+    [JsonPropertyName("directAccessGrantsEnabled")]
+    public bool DirectAccessGrantsEnabled { get; set; }
+
+    [JsonPropertyName("serviceAccountsEnabled")]
+    public bool ServiceAccountsEnabled { get; set; }
+
+    [JsonPropertyName("redirectUris")]
+    public required string[] RedirectUris { get; set; }
+
+    [JsonPropertyName("defaultClientScopes")]
+    public required string[] DefaultClientScopes { get; set; }
+
+    [JsonPropertyName("attributes")]
+    public Dictionary<string, string> Attributes { get; set; } =
+        new(StringComparer.Ordinal) { ["pkce.code.challenge.method"] = "S256" };
+}
+
 internal sealed class DcrResponse
 {
     [JsonPropertyName("client_id")]
     public string? ClientId { get; set; }
 
+    [JsonPropertyName("clientId")]
+    public string? ClientIdCamelCase { get; set; }
+
     [JsonPropertyName("client_secret")]
     public string? ClientSecret { get; set; }
+
+    [JsonPropertyName("clientSecret")]
+    public string? ClientSecretCamelCase { get; set; }
+
+    internal string? ResolvedClientId => ClientId ?? ClientIdCamelCase;
+
+    internal string? ResolvedClientSecret => ClientSecret ?? ClientSecretCamelCase;
 }

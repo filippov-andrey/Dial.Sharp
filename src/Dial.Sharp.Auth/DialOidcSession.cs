@@ -78,6 +78,7 @@ public sealed class DialOidcSession : IDisposable
             if (!_tokensLoaded)
             {
                 _tokens = await _store.LoadAsync(cancellationToken).ConfigureAwait(false);
+                ApplyClientIdFromTokens(_tokens);
                 _tokensLoaded = true;
             }
 
@@ -138,8 +139,17 @@ public sealed class DialOidcSession : IDisposable
 
     private async ValueTask SetTokensAsync(DialTokenSet tokens, CancellationToken cancellationToken)
     {
-        _tokens = tokens;
-        await _store.SaveAsync(tokens, cancellationToken).ConfigureAwait(false);
+        _tokens = tokens with { ClientId = tokens.ClientId ?? _clientId };
+        ApplyClientIdFromTokens(_tokens);
+        await _store.SaveAsync(_tokens, cancellationToken).ConfigureAwait(false);
+    }
+
+    private void ApplyClientIdFromTokens(DialTokenSet? tokens)
+    {
+        if (!string.IsNullOrEmpty(tokens?.ClientId))
+        {
+            _clientId ??= tokens.ClientId;
+        }
     }
 
     private async Task<DialTokenSet> LoginAsync(CancellationToken cancellationToken)
@@ -152,8 +162,10 @@ public sealed class DialOidcSession : IDisposable
         var redirectUri = BuildRedirectUri();
 
         var authorizationUrl = BuildAuthorizationUrl(discovery.AuthorizationEndpoint!, challenge, state, redirectUri);
+        // Do not tie the loopback callback wait to the caller's HTTP cancellation token: SDK retries/timeouts
+        // would stop listening while the user is still signing in through the browser.
         var callback = await _browser
-            .GetAuthorizationCodeAsync(authorizationUrl, redirectUri, state, cancellationToken)
+            .GetAuthorizationCodeAsync(authorizationUrl, redirectUri, state, CancellationToken.None)
             .ConfigureAwait(false);
 
         return await ExchangeCodeAsync(discovery, callback.Code, verifier, redirectUri, cancellationToken)
@@ -193,15 +205,39 @@ public sealed class DialOidcSession : IDisposable
                 "No ClientId configured and the IdP does not advertise a registration_endpoint for Dynamic Client Registration.");
         }
 
-        var request = new DcrRequest
-        {
-            RedirectUris = [BuildRedirectUri().ToString()],
-            Scope = _options.Scopes,
-        };
+        var redirectUri = BuildRedirectUri().ToString();
+        Exception? lastError = null;
 
-        using var message = new HttpRequestMessage(HttpMethod.Post, discovery.RegistrationEndpoint)
+        foreach (var (url, body) in KeycloakClientRegistration.BuildAttempts(
+                     discovery.RegistrationEndpoint, redirectUri, _options))
         {
-            Content = JsonContent.Create(request, DialAuthJsonContext.Default.DcrRequest),
+            try
+            {
+                var registered = await PostRegistrationAsync(url, body, cancellationToken).ConfigureAwait(false);
+                _clientId = registered.ClientId;
+                _clientSecret ??= registered.ClientSecret;
+                return;
+            }
+            catch (Exception ex)
+            {
+                lastError = ex;
+            }
+        }
+
+        throw lastError ?? new InvalidOperationException("Dynamic Client Registration failed.");
+    }
+
+    private async Task<DcrResponse> PostRegistrationAsync(Uri url, object body, CancellationToken cancellationToken)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = body switch
+            {
+                DcrRequest request => JsonContent.Create(request, DialAuthJsonContext.Default.DcrRequest),
+                KeycloakDefaultDcrRequest keycloak => JsonContent.Create(
+                    keycloak, DialAuthJsonContext.Default.KeycloakDefaultDcrRequest),
+                _ => throw new InvalidOperationException($"Unsupported registration payload: {body.GetType().Name}"),
+            },
         };
         if (!string.IsNullOrEmpty(_options.InitialAccessToken))
         {
@@ -214,13 +250,14 @@ public sealed class DialOidcSession : IDisposable
             .ReadFromJsonAsync(DialAuthJsonContext.Default.DcrResponse, cancellationToken)
             .ConfigureAwait(false);
 
-        if (string.IsNullOrEmpty(registered?.ClientId))
+        if (string.IsNullOrEmpty(registered?.ResolvedClientId))
         {
             throw new InvalidOperationException("Dynamic Client Registration did not return a client_id.");
         }
 
-        _clientId = registered.ClientId;
-        _clientSecret ??= registered.ClientSecret;
+        registered.ClientId = registered.ResolvedClientId;
+        registered.ClientSecret ??= registered.ResolvedClientSecret;
+        return registered;
     }
 
     private async Task<DialTokenSet> ExchangeCodeAsync(
@@ -253,11 +290,12 @@ public sealed class DialOidcSession : IDisposable
         }
 
         var discovery = await EnsureDiscoveryAsync(cancellationToken).ConfigureAwait(false);
+        var clientId = ResolveClientId(current);
         var fields = new Dictionary<string, string>
         {
             ["grant_type"] = "refresh_token",
             ["refresh_token"] = current.RefreshToken,
-            ["client_id"] = _clientId ?? _options.ClientId ?? string.Empty,
+            ["client_id"] = clientId,
         };
         if (!string.IsNullOrEmpty(_clientSecret))
         {
@@ -280,8 +318,12 @@ public sealed class DialOidcSession : IDisposable
         }
 
         // Honor refresh-token rotation: fall back to the previous token if the IdP did not issue a new one.
-        return ToTokenSet(token, fallbackRefreshToken: current.RefreshToken);
+        return ToTokenSet(token, fallbackRefreshToken: current.RefreshToken, fallbackClientId: current.ClientId);
     }
+
+    private string ResolveClientId(DialTokenSet? tokens = null) =>
+        _clientId ?? tokens?.ClientId ?? _options.ClientId
+        ?? throw new InvalidOperationException("OAuth client_id is not available.");
 
     private async Task<OidcTokenResponse?> PostTokenAsync(
         string tokenEndpoint, IDictionary<string, string> fields, CancellationToken cancellationToken)
@@ -301,13 +343,17 @@ public sealed class DialOidcSession : IDisposable
         return token;
     }
 
-    private DialTokenSet ToTokenSet(OidcTokenResponse token, string? fallbackRefreshToken = null)
+    private DialTokenSet ToTokenSet(
+        OidcTokenResponse token,
+        string? fallbackRefreshToken = null,
+        string? fallbackClientId = null)
     {
         var lifetime = TimeSpan.FromSeconds(token.ExpiresIn ?? 300);
         return new DialTokenSet(
             token.AccessToken!,
             string.IsNullOrEmpty(token.RefreshToken) ? fallbackRefreshToken : token.RefreshToken,
-            _timeProvider.GetUtcNow() + lifetime);
+            _timeProvider.GetUtcNow() + lifetime,
+            _clientId ?? fallbackClientId);
     }
 
     private Uri BuildRedirectUri() => new($"http://127.0.0.1:{_options.CallbackPort}/oauth-callback");

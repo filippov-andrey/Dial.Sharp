@@ -1,10 +1,15 @@
 namespace Dial.Sharp.Auth;
 
-/// <summary>A persisted set of OIDC tokens.</summary>
+/// <summary>A persisted set of OIDC tokens and optional dynamically registered client metadata.</summary>
 /// <param name="AccessToken">The bearer access token.</param>
 /// <param name="RefreshToken">The refresh token, if the IdP issued one.</param>
 /// <param name="ExpiresAtUtc">When the access token expires.</param>
-public sealed record DialTokenSet(string AccessToken, string? RefreshToken, DateTimeOffset ExpiresAtUtc);
+/// <param name="ClientId">OAuth client id (for example from dynamic client registration).</param>
+public sealed record DialTokenSet(
+    string AccessToken,
+    string? RefreshToken,
+    DateTimeOffset ExpiresAtUtc,
+    string? ClientId = null);
 
 /// <summary>Stores OIDC tokens between requests (and, optionally, across process restarts).</summary>
 public interface IDialTokenStore
