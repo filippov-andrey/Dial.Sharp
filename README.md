@@ -446,7 +446,6 @@ Uri endpoint = new(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")!);
 var services = new ServiceCollection();
 services.AddDialClient(endpoint, options =>
 {
-    options.ServerUrl = endpoint;
     options.ClientId = Environment.GetEnvironmentVariable("DIAL_OIDC_CLIENT_ID"); // omit to try Dynamic Client Registration
 });
 services.AddDialChatClient("gpt-4o-mini");

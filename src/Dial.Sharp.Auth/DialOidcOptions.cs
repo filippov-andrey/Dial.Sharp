@@ -3,7 +3,7 @@ namespace Dial.Sharp.Auth;
 /// <summary>Configuration for the interactive DIAL OIDC sign-in flow.</summary>
 public sealed class DialOidcOptions
 {
-    /// <summary>Base DIAL URL; OIDC discovery runs against <c>{ServerUrl}/.well-known/openid-configuration</c>.</summary>
+    /// <summary>Base DIAL URL for OIDC discovery. Defaults to the <c>endpoint</c> passed to <see cref="DialOidcServiceCollectionExtensions.AddDialClient"/> when unset.</summary>
     public Uri? ServerUrl { get; set; }
 
     /// <summary>Public OIDC client id. When empty, Dynamic Client Registration is attempted.</summary>
