@@ -15,7 +15,6 @@ var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3
 var services = new ServiceCollection();
 services.AddDialClient(endpoint, options =>
 {
-    options.ServerUrl = endpoint;
     options.ClientId = Environment.GetEnvironmentVariable("DIAL_OIDC_CLIENT_ID");
 });
 services.AddDialChatClient(deployment);

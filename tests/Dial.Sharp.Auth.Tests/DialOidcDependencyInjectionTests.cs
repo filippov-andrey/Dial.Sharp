@@ -25,11 +25,7 @@ public class DialOidcDependencyInjectionTests
 
         var services = new ServiceCollection();
         services.AddSingleton<IOidcBrowser>(new FakeBrowser());
-        services.AddDialClient(Server, o =>
-        {
-            o.ServerUrl = Server;
-            o.ClientId = "client";
-        });
+        services.AddDialClient(Server, o => o.ClientId = "client");
         services.AddHttpClient(DialOidcServiceCollectionExtensions.IdpHttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => idpHandler);
 
@@ -53,16 +49,24 @@ public class DialOidcDependencyInjectionTests
     }
 
     [Fact]
+    public void AddDialClient_Oidc_DefaultsServerUrlFromEndpoint()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IOidcBrowser>(new FakeBrowser());
+        services.AddDialClient(Server, o => o.ClientId = "client");
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Equal(Server, provider.GetRequiredService<DialOidcSession>().ServerUrl);
+    }
+
+    [Fact]
     public void UseDialTokenStore_ReplacesDefaultStore()
     {
         var customStore = new InMemoryDialTokenStore();
         var services = new ServiceCollection();
         services.AddSingleton<IOidcBrowser>(new FakeBrowser());
-        services.AddDialClient(Server, o =>
-        {
-            o.ServerUrl = Server;
-            o.ClientId = "client";
-        })
+        services.AddDialClient(Server, o => o.ClientId = "client")
             .UseDialTokenStore(customStore);
 
         using var provider = services.BuildServiceProvider();

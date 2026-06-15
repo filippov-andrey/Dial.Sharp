@@ -13,7 +13,8 @@ public static class DialOidcServiceCollectionExtensions
 
     /// <summary>
     /// Registers a singleton <see cref="DialClient"/> authenticated via interactive OIDC (Authorization Code + PKCE,
-    /// automatic refresh, optional Dynamic Client Registration).
+    /// automatic refresh, optional Dynamic Client Registration). <see cref="DialOidcOptions.ServerUrl"/> defaults to
+    /// <paramref name="endpoint"/> when not set in <paramref name="configureOidc"/>.
     /// </summary>
     public static IDialClientBuilder AddDialClient(
         this IServiceCollection services,
@@ -25,7 +26,7 @@ public static class DialOidcServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(endpoint);
         ArgumentNullException.ThrowIfNull(configureOidc);
 
-        RegisterOidc(services, configureOidc);
+        RegisterOidc(services, endpoint, configureOidc);
         return services.AddDialClientCore(endpoint, configureOptions);
     }
 
@@ -59,10 +60,11 @@ public static class DialOidcServiceCollectionExtensions
         return builder;
     }
 
-    private static void RegisterOidc(IServiceCollection services, Action<DialOidcOptions> configure)
+    private static void RegisterOidc(IServiceCollection services, Uri endpoint, Action<DialOidcOptions> configure)
     {
         var options = new DialOidcOptions();
         configure(options);
+        options.ServerUrl ??= endpoint;
 
         services.AddHttpClient(IdpHttpClientName);
         services.TryAddSingleton<IDialTokenStore, InMemoryDialTokenStore>();
