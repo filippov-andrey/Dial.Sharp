@@ -20,7 +20,7 @@ public class DialTokenizeClientTests
                                                 """));
         });
 
-        DialTokenizeClient client = new(httpClient, new Uri("https://dial.example.com"), "qwen3.6-27b-awq");
+        DialTokenizeClient client = new(DialTestPipeline.For(httpClient, new Uri("https://dial.example.com")), new Uri("https://dial.example.com"), "qwen3.6-27b-awq");
         var response = await client.TokenizeAsync(new DialTokenizeRequest
         {
             Inputs = [DialTokenizeInput.FromString("hello")],
@@ -40,7 +40,7 @@ public class DialTokenizeClientTests
                                          """)));
 
         DialTokenCounter counter = new(new DialTokenizeClient(
-            httpClient,
+            DialTestPipeline.For(httpClient, new Uri("https://dial.example.com")),
             new Uri("https://dial.example.com"),
             "qwen3.6-27b-awq"));
 
@@ -87,7 +87,7 @@ public class DialTokenizeClientTests
         });
 
         DialTokenCounter counter = new(new DialTokenizeClient(
-            httpClient,
+            DialTestPipeline.For(httpClient, new Uri("https://dial.example.com")),
             new Uri("https://dial.example.com"),
             "qwen3.6-27b-awq"));
 
@@ -120,7 +120,7 @@ public class DialTokenizeClientTests
                                          """)));
 
         DialTokenCounter counter = new(new DialTokenizeClient(
-            httpClient,
+            DialTestPipeline.For(httpClient, new Uri("https://dial.example.com")),
             new Uri("https://dial.example.com"),
             "qwen3.6-27b-awq"));
 
@@ -245,7 +245,7 @@ public class DialTokenizeClientTests
     private static string GetWeather() => "sunny";
 
     private static DialTokenizeClient NewTokenizeClient(HttpClient httpClient) =>
-        new(httpClient, new Uri("https://dial.example.com"), "qwen3.6-27b-awq");
+        new(DialTestPipeline.For(httpClient, new Uri("https://dial.example.com")), new Uri("https://dial.example.com"), "qwen3.6-27b-awq");
 
     private static HttpClient CreateClient(
         Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler) =>
@@ -256,9 +256,9 @@ public class DialTokenizeClientTests
 
     private sealed class DelegatingHandlerImpl(
         Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler)
-        : HttpMessageHandler
+        : TestHttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+        protected override Task<HttpResponseMessage> SendCoreAsync(HttpRequestMessage request,
             CancellationToken cancellationToken) =>
             handler(request, cancellationToken);
     }

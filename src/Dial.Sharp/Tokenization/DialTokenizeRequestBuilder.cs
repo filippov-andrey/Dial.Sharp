@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Dial.Sharp;
 using OpenAI.Chat;
 
 namespace Dial.Sharp.Tokenization;
@@ -37,9 +36,9 @@ internal static class DialTokenizeRequestBuilder
         }
 
         payloadMessages.AddRange(from message in messages
-            let role = message.Role.Value
-            where !string.IsNullOrWhiteSpace(role)
-            select new DialTokenizeMessage { Role = role, Content = ExtractText(message), });
+                                 let role = message.Role.Value
+                                 where !string.IsNullOrWhiteSpace(role)
+                                 select new DialTokenizeMessage { Role = role, Content = ExtractText(message), });
 
         // vLLM tokenize rejects histories whose last message is not from the user.
         if (payloadMessages.Count == 0 ||

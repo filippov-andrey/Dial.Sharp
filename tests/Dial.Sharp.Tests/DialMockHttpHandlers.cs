@@ -1,10 +1,10 @@
 namespace Dial.Sharp;
 
-internal sealed class HeaderCapturingHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : DelegatingHandler
+internal sealed class HeaderCapturingHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : TestHttpMessageHandler
 {
     public HttpRequestMessage? LastRequest { get; private set; }
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    protected override Task<HttpResponseMessage> SendCoreAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         LastRequest = request;
         return Task.FromResult(respond(request));

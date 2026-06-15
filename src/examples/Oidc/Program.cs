@@ -13,12 +13,11 @@ Uri endpoint = new(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")
 var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3.6-27b-awq";
 
 var services = new ServiceCollection();
-services.AddDialClient(endpoint)
-    .AddDialOidc(options =>
-    {
-        options.ServerUrl = endpoint;
-        options.ClientId = Environment.GetEnvironmentVariable("DIAL_OIDC_CLIENT_ID");
-    });
+services.AddDialClient(endpoint, options =>
+{
+    options.ServerUrl = endpoint;
+    options.ClientId = Environment.GetEnvironmentVariable("DIAL_OIDC_CLIENT_ID");
+});
 services.AddDialChatClient(deployment);
 
 await using var provider = services.BuildServiceProvider();

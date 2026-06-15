@@ -1,19 +1,17 @@
+using System.ClientModel.Primitives;
 using Dial.Sharp.Rest;
 
 namespace Dial.Sharp.Tokenization;
 
-internal sealed class DialTokenizeClient(HttpClient httpClient, Uri endpoint, string deployment)
-    : DialRestClientBase(httpClient, endpoint), IDialTokenizeClient
+internal sealed class DialTokenizeClient(ClientPipeline pipeline, Uri endpoint, string deployment)
+    : DialRestClientBase(pipeline, endpoint), IDialTokenizeClient
 {
     /// <inheritdoc />
-    public async Task<DialTokenizeResponse> TokenizeAsync(
+    public Task<DialTokenizeResponse> TokenizeAsync(
         DialTokenizeRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        using HttpResponseMessage response = await HttpClient.PostAsync(
-            ResolveUri($"/v1/deployments/{Uri.EscapeDataString(deployment)}/tokenize"),
-            JsonContent(request),
-            cancellationToken).ConfigureAwait(false);
-        return await ReadAsync<DialTokenizeResponse>(response, cancellationToken).ConfigureAwait(false);
-    }
+        CancellationToken cancellationToken = default) =>
+        PostJsonAsync<DialTokenizeResponse>(
+            $"/v1/deployments/{Uri.EscapeDataString(deployment)}/tokenize",
+            request,
+            cancellationToken);
 }

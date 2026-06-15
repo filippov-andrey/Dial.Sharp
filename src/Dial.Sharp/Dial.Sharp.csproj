@@ -34,6 +34,8 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="Dial.Sharp.Tests"/>
+        <InternalsVisibleTo Include="Dial.Sharp.Auth"/>
+        <InternalsVisibleTo Include="Dial.Sharp.Auth.Tests"/>
     </ItemGroup>
 
 </Project>

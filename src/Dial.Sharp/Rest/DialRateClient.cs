@@ -1,17 +1,12 @@
+using System.ClientModel.Primitives;
 using System.Text.Json;
 
 namespace Dial.Sharp.Rest;
 
-internal sealed class DialRateClient(HttpClient httpClient, Uri endpoint, string deployment)
-    : DialRestClientBase(httpClient, endpoint), IDialRateClient
+internal sealed class DialRateClient(ClientPipeline pipeline, Uri endpoint, string deployment)
+    : DialRestClientBase(pipeline, endpoint), IDialRateClient
 {
     /// <inheritdoc />
-    public async Task<JsonElement> RateAsync(object payload, CancellationToken cancellationToken = default)
-    {
-        using HttpResponseMessage response = await HttpClient.PostAsync(
-            ResolveUri($"/v1/{Uri.EscapeDataString(deployment)}/rate"),
-            JsonContent(payload),
-            cancellationToken).ConfigureAwait(false);
-        return await ReadAsync<JsonElement>(response, cancellationToken).ConfigureAwait(false);
-    }
+    public Task<JsonElement> RateAsync(object payload, CancellationToken cancellationToken = default) =>
+        PostJsonAsync<JsonElement>($"/v1/{Uri.EscapeDataString(deployment)}/rate", payload, cancellationToken);
 }

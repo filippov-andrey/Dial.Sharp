@@ -13,7 +13,7 @@ var token = Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN")
 var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3.6-27b-awq";
 
 var services = new ServiceCollection();
-services.AddDialClient(endpoint).WithBearerToken(token);
+services.AddDialClient(endpoint, DialBearerToken.From(token));
 services.AddDialChatClient(deployment).UseFunctionInvocation();
 await using var provider = services.BuildServiceProvider();
 var chatClient = provider.GetRequiredService<IChatClient>();

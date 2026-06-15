@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Dial.Sharp;
 using Dial.Sharp.Models;
 
 namespace Dial.Sharp.Rest;
@@ -17,5 +16,5 @@ internal static class DialDeploymentJson
         };
 
     private static DialDeployment[] DeserializeDeployments(JsonElement json) =>
-        JsonSerializer.Deserialize(json, DialJsonContext.Default.DialDeploymentArray) ?? [];
+        json.Deserialize(DialJsonContext.Default.DialDeploymentArray) ?? [];
 }

@@ -133,15 +133,14 @@ static async Task<string> TranscribePcmAsync(
 static ServiceProvider BuildProvider(Uri endpoint)
 {
     var services = new ServiceCollection();
-    var builder = services.AddDialClient(endpoint);
 
     if (Environment.GetEnvironmentVariable("DIAL_BEARER_TOKEN") is { Length: > 0 } bearer)
     {
-        builder.WithBearerToken(bearer);
+        services.AddDialClient(endpoint, DialBearerToken.From(bearer));
     }
     else if (Environment.GetEnvironmentVariable("DIAL_API_KEY") is { Length: > 0 } apiKey)
     {
-        builder.WithApiKey(apiKey);
+        services.AddDialClient(endpoint, apiKey);
     }
     else
     {

@@ -1,5 +1,6 @@
 using System.ClientModel;
-using System.Net.Http.Headers;
+using System.ClientModel.Primitives;
+using Dial.Sharp.Auth;
 using Dial.Sharp.Inference;
 using Dial.Sharp.Rest;
 using Dial.Sharp.Tokenization;
@@ -9,98 +10,100 @@ namespace Dial.Sharp;
 /// <summary>Entry point for DIAL Core API clients.</summary>
 public sealed class DialClient : IDisposable
 {
-    private static readonly ApiKeyCredential PlaceholderCredential = new("placeholder-not-used");
-
     private readonly Uri _endpoint;
-    private readonly ApiKeyCredential? _credential;
-    private readonly DialAuthMode _authMode;
     private readonly DialClientOptions _options;
-    private readonly HttpClient _httpClient;
-    private readonly bool _ownsHttpClient;
+    private readonly DialClientTransport _transport;
 
     /// <summary>Creates a client that authenticates with the DIAL <c>Api-Key</c> header.</summary>
     public DialClient(Uri endpoint, ApiKeyCredential credential, DialClientOptions? options = null,
         HttpClient? httpClient = null)
-        : this(endpoint, credential ?? throw new ArgumentNullException(nameof(credential)),
-            DialAuthMode.ApiKey, options, httpClient)
+        : this(endpoint, DialAuthenticationPolicies.ForApiKey(credential ?? throw new ArgumentNullException(nameof(credential))),
+            options, httpClient)
     {
     }
 
-    private DialClient(Uri endpoint, ApiKeyCredential? credential, DialAuthMode authMode, DialClientOptions? options,
-        HttpClient? httpClient)
+    private DialClient(
+        Uri endpoint,
+        AuthenticationPolicy authPolicy,
+        DialClientOptions? options,
+        HttpClient? httpClient,
+        bool? ownsHttpClient = null)
     {
         _endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
-        _credential = credential;
-        _authMode = authMode;
         _options = options ?? new DialClientOptions();
-        _ownsHttpClient = httpClient is null;
-        _httpClient = httpClient ?? CreateHttpClient();
-        ConfigureHttpClientAuth(_httpClient);
-
-        Deployments = new DialDeployments(_httpClient, _endpoint);
-        Models = new DialModels(_httpClient, _endpoint);
-        DeploymentCatalog = new DialDeploymentCatalog(_httpClient, _endpoint);
-        Applications = new DialApplications(_httpClient, _endpoint);
-        Toolsets = new DialToolsets(_httpClient, _endpoint);
-        Files = new DialFiles(_httpClient, _endpoint);
-        Mcp = new DialMcp(_httpClient, _endpoint);
-        CodeInterpreter = new DialCodeInterpreter(_httpClient, _endpoint);
+        _transport = DialClientTransport.Create(endpoint, authPolicy, _options, httpClient, ownsHttpClient);
+        InitializeRestClients(_transport.Pipeline, _endpoint);
     }
 
-    /// <summary>Creates a client that authenticates with an <c>Authorization: Bearer</c> token (e.g. OIDC).</summary>
+    internal static DialClient Create(Uri endpoint, AuthenticationPolicy authPolicy, DialClientOptions? options = null) =>
+        new(endpoint, authPolicy, options, httpClient: null);
+
+    internal static DialClient Create(
+        Uri endpoint,
+        AuthenticationPolicy authPolicy,
+        HttpMessageHandler handler,
+        DialClientOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+
+        var httpClient = new HttpClient(handler, disposeHandler: false);
+        return new DialClient(endpoint, authPolicy, options, httpClient, ownsHttpClient: true);
+    }
+
+    /// <summary>Creates a client that authenticates with an <c>Authorization: Bearer</c> token.</summary>
     public static DialClient WithBearerToken(Uri endpoint, ApiKeyCredential credential,
         DialClientOptions? options = null, HttpClient? httpClient = null) =>
-        new(endpoint, credential ?? throw new ArgumentNullException(nameof(credential)),
-            DialAuthMode.BearerToken, options, httpClient);
+        new(endpoint, DialAuthenticationPolicies.ForBearer(credential ?? throw new ArgumentNullException(nameof(credential))),
+            options, httpClient);
 
     /// <summary>
     /// Creates a client whose authentication is supplied externally by handlers on the provided
     /// <paramref name="httpClient"/> (e.g. a <see cref="DelegatingHandler"/> that sets a refreshing bearer token).
-    /// No static auth header is stamped by the client.
     /// </summary>
-    public static DialClient WithExternalAuth(Uri endpoint, HttpClient httpClient,
-        DialClientOptions? options = null) =>
-        new(endpoint, credential: null, DialAuthMode.External, options,
-            httpClient ?? throw new ArgumentNullException(nameof(httpClient)));
+    public static DialClient WithExternalAuth(Uri endpoint, HttpClient httpClient, DialClientOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(httpClient);
+        return new(endpoint, DialAuthenticationPolicies.Passthrough, options, httpClient);
+    }
 
     public Uri Endpoint => _endpoint;
 
-    public IDialDeployments Deployments { get; }
+    public IDialDeployments Deployments { get; private set; } = null!;
 
-    public IDialModels Models { get; }
+    public IDialModels Models { get; private set; } = null!;
 
-    public IDialDeploymentCatalog DeploymentCatalog { get; }
+    public IDialDeploymentCatalog DeploymentCatalog { get; private set; } = null!;
 
-    public IDialApplications Applications { get; }
+    public IDialApplications Applications { get; private set; } = null!;
 
-    public IDialToolsets Toolsets { get; }
+    public IDialToolsets Toolsets { get; private set; } = null!;
 
-    public IDialFiles Files { get; }
+    public IDialFiles Files { get; private set; } = null!;
 
-    public IDialMcp Mcp { get; }
+    public IDialMcp Mcp { get; private set; } = null!;
 
-    public IDialCodeInterpreter CodeInterpreter { get; }
+    public IDialCodeInterpreter CodeInterpreter { get; private set; } = null!;
 
     public IChatClient GetIChatClient(string deployment) =>
         DialDeploymentSdkClient
-            .CreateChatClient(_endpoint, InferenceCredential, IsBearer, _options, _httpClient, deployment)
+            .CreateChatClient(_endpoint, _transport.AuthPolicy, _options, _transport.HttpClient, deployment)
             .AsIChatClient();
 
     public IEmbeddingGenerator<string, Embedding<float>> GetIEmbeddingGenerator(
         string deployment,
         int? defaultModelDimensions = null) =>
         DialDeploymentSdkClient
-            .CreateEmbeddingClient(_endpoint, InferenceCredential, IsBearer, _options, _httpClient, deployment)
+            .CreateEmbeddingClient(_endpoint, _transport.AuthPolicy, _options, _transport.HttpClient, deployment)
             .AsIEmbeddingGenerator(defaultModelDimensions);
 
     public IDialDeploymentConfigurationClient GetDeploymentConfigurationClient(string deployment) =>
-        new DialDeploymentConfigurationClient(_httpClient, _endpoint, deployment);
+        new DialDeploymentConfigurationClient(_transport.Pipeline, _endpoint, deployment);
 
     public IDialRateClient GetRateClient(string deployment) =>
-        new DialRateClient(_httpClient, _endpoint, deployment);
+        new DialRateClient(_transport.Pipeline, _endpoint, deployment);
 
     public IDialTokenizeClient GetTokenizeClient(string deployment) =>
-        new DialTokenizeClient(_httpClient, _endpoint, deployment);
+        new DialTokenizeClient(_transport.Pipeline, _endpoint, deployment);
 
     public IDialTokenCounter GetTokenCounter(string deployment, bool tokenizeSupported = true)
     {
@@ -109,38 +112,20 @@ public sealed class DialClient : IDisposable
     }
 
     public ISpeechToTextClient GetISpeechToTextClient(string deployment) =>
-        DialDeploymentSdkClient.CreateAudioClient(_endpoint, _options, _httpClient, deployment);
+        DialDeploymentSdkClient.CreateAudioClient(
+            _endpoint, _transport.AuthPolicy, _options, _transport.HttpClient, deployment);
 
-    public void Dispose()
+    public void Dispose() => _transport.Dispose();
+
+    private void InitializeRestClients(ClientPipeline pipeline, Uri endpoint)
     {
-        if (_ownsHttpClient)
-        {
-            _httpClient.Dispose();
-        }
-    }
-
-    private bool IsBearer => _authMode == DialAuthMode.BearerToken;
-
-    private ApiKeyCredential InferenceCredential => _credential ?? PlaceholderCredential;
-
-    private HttpClient CreateHttpClient() => new() { Timeout = _options.NetworkTimeout };
-
-    private void ConfigureHttpClientAuth(HttpClient httpClient)
-    {
-        switch (_authMode)
-        {
-            case DialAuthMode.External:
-                // Authentication is supplied by handlers on the provided HttpClient.
-                return;
-            case DialAuthMode.BearerToken:
-                _credential!.Deconstruct(out var bearer);
-                httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
-                return;
-            default:
-                _credential!.Deconstruct(out var key);
-                httpClient.DefaultRequestHeaders.Remove("Api-Key");
-                httpClient.DefaultRequestHeaders.Add("Api-Key", key);
-                return;
-        }
+        Deployments = new DialDeployments(pipeline, endpoint);
+        Models = new DialModels(pipeline, endpoint);
+        DeploymentCatalog = new DialDeploymentCatalog(pipeline, endpoint);
+        Applications = new DialApplications(pipeline, endpoint);
+        Toolsets = new DialToolsets(pipeline, endpoint);
+        Files = new DialFiles(pipeline, endpoint);
+        Mcp = new DialMcp(pipeline, endpoint);
+        CodeInterpreter = new DialCodeInterpreter(pipeline, endpoint);
     }
 }

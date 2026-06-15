@@ -1,3 +1,4 @@
+using System.ClientModel.Primitives;
 using Dial.Sharp.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,7 +12,7 @@ public class DialDependencyInjectionTests
     public void AddDialClient_WithApiKey_RegistersSingletonDialClient()
     {
         var services = new ServiceCollection();
-        services.AddDialClient(Endpoint).WithApiKey("key");
+        services.AddDialClient(Endpoint, "key");
         using var provider = services.BuildServiceProvider();
 
         var first = provider.GetRequiredService<DialClient>();
@@ -22,23 +23,20 @@ public class DialDependencyInjectionTests
     }
 
     [Fact]
-    public void AddDialClient_RegistersNamedHttpClient()
+    public void AddDialClient_RegistersAuthenticationPolicy()
     {
         var services = new ServiceCollection();
-        services.AddDialClient(Endpoint).WithApiKey("key");
+        services.AddDialClient(Endpoint, "key");
         using var provider = services.BuildServiceProvider();
 
-        var factory = provider.GetRequiredService<IHttpClientFactory>();
-        using var http = factory.CreateClient(DialServiceCollectionExtensions.HttpClientName);
-
-        Assert.NotNull(http);
+        Assert.NotNull(provider.GetRequiredService<AuthenticationPolicy>());
     }
 
     [Fact]
     public void AddDialChatClient_ResolvesIChatClientAndBuilderChains()
     {
         var services = new ServiceCollection();
-        services.AddDialClient(Endpoint).WithApiKey("key");
+        services.AddDialClient(Endpoint, "key");
         services.AddDialChatClient("gpt-4o-mini").UseFunctionInvocation();
         using var provider = services.BuildServiceProvider();
 
@@ -49,20 +47,10 @@ public class DialDependencyInjectionTests
     public void AddDialEmbeddingGenerator_ResolvesGenerator()
     {
         var services = new ServiceCollection();
-        services.AddDialClient(Endpoint).WithBearerToken("token");
+        services.AddDialClient(Endpoint, DialBearerToken.From("token"));
         services.AddDialEmbeddingGenerator("text-embedding-3-small");
         using var provider = services.BuildServiceProvider();
 
         Assert.NotNull(provider.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>());
-    }
-
-    [Fact]
-    public void AddDialClient_WithoutConfiguredAuth_ThrowsOnResolve()
-    {
-        var services = new ServiceCollection();
-        services.AddDialClient(Endpoint);
-        using var provider = services.BuildServiceProvider();
-
-        Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<DialClient>());
     }
 }
