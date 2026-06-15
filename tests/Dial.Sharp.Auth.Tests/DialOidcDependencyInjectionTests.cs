@@ -1,5 +1,6 @@
-using Dial.Sharp.DependencyInjection;
+using System.ClientModel.Primitives;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Dial.Sharp.Auth;
 
@@ -11,7 +12,7 @@ public class DialOidcDependencyInjectionTests
     private static readonly Uri Server = new("https://dial.example.com");
 
     [Fact]
-    public async Task AddDialOidc_AppliesBearerToDialRequests_UsingSeparateIdpClient()
+    public async Task AddDialClient_Oidc_AppliesBearerToDialRequests_UsingSeparateIdpClient()
     {
         var dialHandler = new RoutingHandler((_, _) => RoutingHandler.Json("""{"data":[]}"""));
         var idpHandler = new RoutingHandler((req, _) =>
@@ -24,16 +25,21 @@ public class DialOidcDependencyInjectionTests
 
         var services = new ServiceCollection();
         services.AddSingleton<IOidcBrowser>(new FakeBrowser());
-        services.AddDialClient(Server)
-            .AddDialOidc(o =>
-            {
-                o.ServerUrl = Server;
-                o.ClientId = "client";
-            });
-        services.AddHttpClient(DialServiceCollectionExtensions.HttpClientName)
-            .ConfigurePrimaryHttpMessageHandler(() => dialHandler);
+        services.AddDialClient(Server, o =>
+        {
+            o.ServerUrl = Server;
+            o.ClientId = "client";
+        });
         services.AddHttpClient(DialOidcServiceCollectionExtensions.IdpHttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => idpHandler);
+
+        services.RemoveAll<DialClient>();
+        services.AddSingleton(sp =>
+            DialClient.Create(
+                Server,
+                sp.GetRequiredService<AuthenticationPolicy>(),
+                dialHandler));
+
         await using var provider = services.BuildServiceProvider();
 
         var dial = provider.GetRequiredService<DialClient>();
@@ -52,12 +58,11 @@ public class DialOidcDependencyInjectionTests
         var customStore = new InMemoryDialTokenStore();
         var services = new ServiceCollection();
         services.AddSingleton<IOidcBrowser>(new FakeBrowser());
-        services.AddDialClient(Server)
-            .AddDialOidc(o =>
-            {
-                o.ServerUrl = Server;
-                o.ClientId = "client";
-            })
+        services.AddDialClient(Server, o =>
+        {
+            o.ServerUrl = Server;
+            o.ClientId = "client";
+        })
             .UseDialTokenStore(customStore);
 
         using var provider = services.BuildServiceProvider();

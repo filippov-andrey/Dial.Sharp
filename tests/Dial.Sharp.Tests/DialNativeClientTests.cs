@@ -15,7 +15,7 @@ public class DialNativeClientTests
             return Task.FromResult(JsonResponse("""{"data":[]}"""));
         });
 
-        DialDeployments client = new(httpClient, new Uri("https://dial.example.com/"));
+        DialDeployments client = new(DialTestPipeline.For(httpClient, new Uri("https://dial.example.com/")), new Uri("https://dial.example.com/"));
         _ = await client.GetOpenAiAsync();
 
         Assert.Equal("https://dial.example.com/openai/deployments", requestedUri?.ToString());
@@ -31,7 +31,7 @@ public class DialNativeClientTests
             return Task.FromResult(JsonResponse("""{"deployments":[]}"""));
         });
 
-        DialDeploymentCatalog client = new(httpClient, new Uri("https://dial.example.com"));
+        DialDeploymentCatalog client = new(DialTestPipeline.For(httpClient, new Uri("https://dial.example.com")), new Uri("https://dial.example.com"));
         var result = await client.GetAsync("chat");
 
         Assert.Equal("https://dial.example.com/v1/deployments?interface_type=chat", requestedUri?.ToString());
@@ -44,7 +44,7 @@ public class DialNativeClientTests
         using var httpClient = CreateClient((_, _) =>
             Task.FromResult(JsonResponse("""[{"id":"gpt-4","object":"model","status":"succeeded"}]""")));
 
-        DialDeploymentCatalog client = new(httpClient, new Uri("https://dial.example.com"));
+        DialDeploymentCatalog client = new(DialTestPipeline.For(httpClient, new Uri("https://dial.example.com")), new Uri("https://dial.example.com"));
         var result = await client.GetAsync();
 
         Assert.Equal("gpt-4", result.Data[0].Id);
@@ -73,7 +73,7 @@ public class DialNativeClientTests
                 """));
         });
 
-        DialApplications client = new(httpClient, new Uri("https://dial.example.com"));
+        DialApplications client = new(DialTestPipeline.For(httpClient, new Uri("https://dial.example.com")), new Uri("https://dial.example.com"));
         var result = await client.GetOpenAiAsync();
 
         Assert.Equal("https://dial.example.com/openai/applications", requestedUri?.ToString());
@@ -92,7 +92,7 @@ public class DialNativeClientTests
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
         });
 
-        DialFiles client = new(httpClient, new Uri("https://dial.example.com"));
+        DialFiles client = new(DialTestPipeline.For(httpClient, new Uri("https://dial.example.com")), new Uri("https://dial.example.com"));
         await client.UploadAsync("bucket", "/folder/file.txt", new MemoryStream(Encoding.UTF8.GetBytes("data")));
 
         Assert.Equal("https://dial.example.com/v1/files/bucket/folder/file.txt", requestedUri?.ToString());
@@ -105,9 +105,9 @@ public class DialNativeClientTests
         new(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
 
     private sealed class DelegatingHandlerImpl(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler)
-        : HttpMessageHandler
+        : TestHttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+        protected override Task<HttpResponseMessage> SendCoreAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             handler(request, cancellationToken);
     }
 }

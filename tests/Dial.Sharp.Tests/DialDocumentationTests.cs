@@ -403,9 +403,9 @@ public class DialDocumentationTests
     private static HttpResponseMessage CatalogResponse() =>
         new() { Content = new StringContent("""{"deployments":[]}""") };
 
-    private sealed class RoutingHandler(Func<HttpRequestMessage, HttpResponseMessage> route) : HttpMessageHandler
+    private sealed class RoutingHandler(Func<HttpRequestMessage, HttpResponseMessage> route) : TestHttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+        protected override Task<HttpResponseMessage> SendCoreAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             Task.FromResult(route(request));
     }
 }

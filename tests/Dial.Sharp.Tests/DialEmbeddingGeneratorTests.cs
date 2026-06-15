@@ -83,9 +83,9 @@ public class DialEmbeddingGeneratorTests
     }
 
     private sealed class BodyCapturingHandler(Action<string> captureBody, HttpResponseMessage response)
-        : HttpMessageHandler
+        : TestHttpMessageHandler
     {
-        protected override async Task<HttpResponseMessage> SendAsync(
+        protected override async Task<HttpResponseMessage> SendCoreAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
             if (request.Content is not null)

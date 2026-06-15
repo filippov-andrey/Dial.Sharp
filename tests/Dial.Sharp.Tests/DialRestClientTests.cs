@@ -1,3 +1,4 @@
+using System.ClientModel;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -14,7 +15,7 @@ public class DialRestClientTests
         var handler = new CapturingHandler(_ => JsonResponse("""{"object":"list","data":[{"id":"gpt-4","object":"model"}]}"""));
         using var httpClient = new HttpClient(handler);
 
-        var client = new DialModels(httpClient, Endpoint);
+        var client = new DialModels(DialTestPipeline.For(httpClient, Endpoint), Endpoint);
         var result = await client.GetOpenAiAsync();
 
         Assert.Equal("https://dial.example.com/openai/models", handler.LastUri?.ToString());
@@ -28,7 +29,7 @@ public class DialRestClientTests
         var handler = new CapturingHandler(_ => JsonResponse("""{"object":"list","data":[{"name":"web"}]}"""));
         using var httpClient = new HttpClient(handler);
 
-        var client = new DialToolsets(httpClient, Endpoint);
+        var client = new DialToolsets(DialTestPipeline.For(httpClient, Endpoint), Endpoint);
         JsonElement result = await client.GetOpenAiAsync();
 
         Assert.Equal("https://dial.example.com/openai/toolsets", handler.LastUri?.ToString());
@@ -41,7 +42,7 @@ public class DialRestClientTests
         var handler = new CapturingHandler(_ => JsonResponse("""{"ok":true}"""));
         using var httpClient = new HttpClient(handler);
 
-        var client = new DialMcp(httpClient, Endpoint);
+        var client = new DialMcp(DialTestPipeline.For(httpClient, Endpoint), Endpoint);
         JsonElement result = await client.InvokeDeploymentAsync(
             "gpt-4", JsonSerializer.SerializeToElement(new { method = "tools/list" }));
 
@@ -57,7 +58,7 @@ public class DialRestClientTests
         var handler = new CapturingHandler(_ => JsonResponse("""{"ok":true}"""));
         using var httpClient = new HttpClient(handler);
 
-        var client = new DialMcp(httpClient, Endpoint);
+        var client = new DialMcp(DialTestPipeline.For(httpClient, Endpoint), Endpoint);
         await client.InvokeToolsetAsync("my toolset", JsonSerializer.SerializeToElement(new { x = 1 }));
 
         Assert.Equal("https://dial.example.com/v1/toolset/my%20toolset/mcp", handler.LastUri?.AbsoluteUri);
@@ -70,7 +71,7 @@ public class DialRestClientTests
         var handler = new CapturingHandler(_ => JsonResponse("""{"result":"42"}"""));
         using var httpClient = new HttpClient(handler);
 
-        var client = new DialCodeInterpreter(httpClient, Endpoint);
+        var client = new DialCodeInterpreter(DialTestPipeline.For(httpClient, Endpoint), Endpoint);
         await client.InvokeAsync("execute", JsonSerializer.SerializeToElement(new { code = "print(1)" }));
 
         Assert.Equal("https://dial.example.com/v1/ops/code_interpreter/execute", handler.LastUri?.ToString());
@@ -83,7 +84,7 @@ public class DialRestClientTests
         var handler = new CapturingHandler(_ => JsonResponse("""{"result":"42"}"""));
         using var httpClient = new HttpClient(handler);
 
-        var client = new DialCodeInterpreter(httpClient, Endpoint);
+        var client = new DialCodeInterpreter(DialTestPipeline.For(httpClient, Endpoint), Endpoint);
         await client.InvokeAsync("/v1/custom/code", JsonSerializer.SerializeToElement(new { code = "1" }));
 
         Assert.Equal("https://dial.example.com/v1/custom/code", handler.LastUri?.ToString());
@@ -95,7 +96,7 @@ public class DialRestClientTests
         var handler = new CapturingHandler(_ => JsonResponse("""{"status":"ok"}"""));
         using var httpClient = new HttpClient(handler);
 
-        var client = new DialRateClient(httpClient, Endpoint, "gpt-4");
+        var client = new DialRateClient(DialTestPipeline.For(httpClient, Endpoint), Endpoint, "gpt-4");
         JsonElement result = await client.RateAsync(JsonSerializer.SerializeToElement(new { rate = true }));
 
         Assert.Equal("https://dial.example.com/v1/gpt-4/rate", handler.LastUri?.ToString());
@@ -109,7 +110,7 @@ public class DialRestClientTests
         var handler = new CapturingHandler(_ => JsonResponse("""{"temperature":0.7}"""));
         using var httpClient = new HttpClient(handler);
 
-        var client = new DialDeploymentConfigurationClient(httpClient, Endpoint, "gpt-4");
+        var client = new DialDeploymentConfigurationClient(DialTestPipeline.For(httpClient, Endpoint), Endpoint, "gpt-4");
         JsonElement result = await client.GetAsync();
 
         Assert.Equal("https://dial.example.com/v1/deployments/gpt-4/configuration", handler.LastUri?.ToString());
@@ -126,7 +127,7 @@ public class DialRestClientTests
         });
         using var httpClient = new HttpClient(handler);
 
-        var client = new DialFiles(httpClient, Endpoint);
+        var client = new DialFiles(DialTestPipeline.For(httpClient, Endpoint), Endpoint);
         await using Stream stream = await client.DownloadAsync("bucket", "/folder/file.txt");
         using StreamReader reader = new(stream);
 
@@ -140,7 +141,7 @@ public class DialRestClientTests
         var handler = new CapturingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
         using var httpClient = new HttpClient(handler);
 
-        var client = new DialFiles(httpClient, Endpoint);
+        var client = new DialFiles(DialTestPipeline.For(httpClient, Endpoint), Endpoint);
         await client.DeleteAsync("bucket", "/folder/file.txt");
 
         Assert.Equal("https://dial.example.com/v1/files/bucket/folder/file.txt", handler.LastUri?.ToString());
@@ -153,8 +154,8 @@ public class DialRestClientTests
         var handler = new CapturingHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
         using var httpClient = new HttpClient(handler);
 
-        var client = new DialModels(httpClient, Endpoint);
-        await Assert.ThrowsAsync<HttpRequestException>(() => client.GetOpenAiAsync());
+        var client = new DialModels(DialTestPipeline.For(httpClient, Endpoint), Endpoint);
+        await Assert.ThrowsAsync<ClientResultException>(() => client.GetOpenAiAsync());
     }
 
     [Fact]
@@ -163,8 +164,8 @@ public class DialRestClientTests
         var handler = new CapturingHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
         using var httpClient = new HttpClient(handler);
 
-        var client = new DialMcp(httpClient, Endpoint);
-        await Assert.ThrowsAsync<HttpRequestException>(
+        var client = new DialMcp(DialTestPipeline.For(httpClient, Endpoint), Endpoint);
+        await Assert.ThrowsAsync<ClientResultException>(
             () => client.InvokeDeploymentAsync("gpt-4", JsonSerializer.SerializeToElement(new { x = 1 })));
     }
 
@@ -176,20 +177,20 @@ public class DialRestClientTests
         using CancellationTokenSource cts = new();
         await cts.CancelAsync();
 
-        var client = new DialModels(httpClient, Endpoint);
+        var client = new DialModels(DialTestPipeline.For(httpClient, Endpoint), Endpoint);
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.GetOpenAiAsync(cts.Token));
     }
 
     private static HttpResponseMessage JsonResponse(string json) =>
         new(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
 
-    private sealed class CapturingHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
+    private sealed class CapturingHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : TestHttpMessageHandler
     {
         public Uri? LastUri { get; private set; }
         public HttpMethod? LastMethod { get; private set; }
         public string? LastBody { get; private set; }
 
-        protected override async Task<HttpResponseMessage> SendAsync(
+        protected override async Task<HttpResponseMessage> SendCoreAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();

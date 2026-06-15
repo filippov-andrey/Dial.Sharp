@@ -391,7 +391,13 @@ foreach (var prompt in new[] { "What is AI?", "What is .NET?", "What is AI?" })
 
 ### Dependency Injection
 
-`AddDialClient` registers a singleton `DialClient` over a named `HttpClient` (from `IHttpClientFactory`) and returns a builder for choosing authentication — `WithApiKey`, `WithBearerToken`, or `UseExternalAuth`. `AddDialChatClient` and `AddDialEmbeddingGenerator` return the Microsoft.Extensions.AI `ChatClientBuilder` / `EmbeddingGeneratorBuilder`, so you can chain middleware:
+`AddDialClient` registers a singleton `DialClient` and requires authentication up front:
+
+- **Api-Key:** `AddDialClient(endpoint, apiKey)`
+- **Bearer:** `AddDialClient(endpoint, DialBearerToken.From(token))`
+- **OIDC** (`AI.Dial.Sharp.Auth`): `AddDialClient(endpoint, oidcOptions => { ... })`
+
+`AddDialChatClient` and `AddDialEmbeddingGenerator` return the Microsoft.Extensions.AI `ChatClientBuilder` / `EmbeddingGeneratorBuilder`, so you can chain middleware:
 
 ```csharp
 using Dial.Sharp;
@@ -404,8 +410,9 @@ var builder = Host.CreateApplicationBuilder();
 builder.Services.AddDistributedMemoryCache();
 
 builder.Services
-    .AddDialClient(new Uri(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")!))
-    .WithApiKey(Environment.GetEnvironmentVariable("DIAL_API_KEY")!);
+    .AddDialClient(
+        new Uri(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")!),
+        Environment.GetEnvironmentVariable("DIAL_API_KEY")!);
 
 builder.Services.AddDialChatClient("gpt-4o-mini")
     .UseDistributedCache()
@@ -421,7 +428,7 @@ Console.WriteLine(await chatClient.GetResponseAsync("What is AI?"));
 
 ### OIDC sign-in (Dial.Sharp.Auth)
 
-The optional **`AI.Dial.Sharp.Auth`** package adds interactive OIDC sign-in (Authorization Code + PKCE, automatic refresh, and optional Dynamic Client Registration). `AddDialOidc` attaches a refreshing `Authorization: Bearer` handler to the DIAL `HttpClient` and switches the client to external auth — the system browser opens lazily on the first request:
+The optional **`AI.Dial.Sharp.Auth`** package adds interactive OIDC sign-in (Authorization Code + PKCE, automatic refresh, and optional Dynamic Client Registration). Pass an OIDC configuration delegate to `AddDialClient` — the system browser opens lazily on the first request:
 
 ```console
 dotnet add package AI.Dial.Sharp.Auth
@@ -437,12 +444,11 @@ using Microsoft.Extensions.DependencyInjection;
 Uri endpoint = new(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")!);
 
 var services = new ServiceCollection();
-services.AddDialClient(endpoint)
-    .AddDialOidc(options =>
-    {
-        options.ServerUrl = endpoint;
-        options.ClientId = Environment.GetEnvironmentVariable("DIAL_OIDC_CLIENT_ID"); // omit to try Dynamic Client Registration
-    });
+services.AddDialClient(endpoint, options =>
+{
+    options.ServerUrl = endpoint;
+    options.ClientId = Environment.GetEnvironmentVariable("DIAL_OIDC_CLIENT_ID"); // omit to try Dynamic Client Registration
+});
 services.AddDialChatClient("gpt-4o-mini");
 
 using var provider = services.BuildServiceProvider();

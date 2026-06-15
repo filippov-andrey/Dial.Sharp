@@ -34,7 +34,7 @@ if (mcpTools.Count == 0)
 }
 
 var services = new ServiceCollection();
-services.AddDialClient(endpoint).WithBearerToken(token);
+services.AddDialClient(endpoint, DialBearerToken.From(token));
 services.AddDialChatClient(deployment).UseFunctionInvocation();
 await using var provider = services.BuildServiceProvider();
 var chatClient = provider.GetRequiredService<IChatClient>();

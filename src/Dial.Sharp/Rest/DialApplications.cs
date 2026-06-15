@@ -1,13 +1,12 @@
-using System.Net.Http.Json;
-using Dial.Sharp;
+using System.ClientModel.Primitives;
 using Dial.Sharp.Models;
 
 namespace Dial.Sharp.Rest;
 
-internal sealed class DialApplications(HttpClient httpClient, Uri endpoint)
-    : DialRestClientBase(httpClient, endpoint), IDialApplications
+internal sealed class DialApplications(ClientPipeline pipeline, Uri endpoint)
+    : DialRestClientBase(pipeline, endpoint), IDialApplications
 {
     /// <inheritdoc />
-    public async Task<DialApplicationList> GetOpenAiAsync(CancellationToken cancellationToken = default) =>
-        (await HttpClient.GetFromJsonAsync(ResolveUri("/openai/applications"), DialJsonContext.Default.DialApplicationList, cancellationToken).ConfigureAwait(false))!;
+    public Task<DialApplicationList> GetOpenAiAsync(CancellationToken cancellationToken = default) =>
+        GetFromJsonAsync<DialApplicationList>("/openai/applications", cancellationToken);
 }

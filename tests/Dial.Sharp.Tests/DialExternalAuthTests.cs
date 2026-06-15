@@ -27,13 +27,13 @@ public class DialExternalAuthTests
         Assert.Throws<ArgumentNullException>(() => DialClient.WithExternalAuth(Endpoint, null!));
     }
 
-    private sealed class RotatingBearerHandler : HttpMessageHandler
+    private sealed class RotatingBearerHandler : TestHttpMessageHandler
     {
         private int _count;
 
         public List<string> SeenAuthorizations { get; } = [];
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        protected override Task<HttpResponseMessage> SendCoreAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", $"token-{++_count}");

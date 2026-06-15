@@ -246,7 +246,7 @@ internal sealed class DialAudioClient : AudioClient, ISpeechToTextClient
             customContent.ValueKind != JsonValueKind.Object ||
             !customContent.TryGetProperty("stages", out var stages) ||
             stages.ValueKind != JsonValueKind.Array) return null;
-        
+
         foreach (var stage in stages.EnumerateArray())
         {
             if (stage.ValueKind != JsonValueKind.Object ||

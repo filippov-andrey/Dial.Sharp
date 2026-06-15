@@ -169,7 +169,7 @@ internal sealed class DialChatClient : DelegatingChatClient
     {
         reasoningText = null;
 
-        for (var i = 0;; i++)
+        for (var i = 0; ; i++)
         {
             ReadOnlySpan<byte> namePath =
                 Encoding.UTF8.GetBytes($"$.choices[0].message.custom_content.stages[{i}].name");
@@ -195,7 +195,7 @@ internal sealed class DialChatClient : DelegatingChatClient
     {
         reasoningText = null;
 
-        for (var i = 0;; i++)
+        for (var i = 0; ; i++)
         {
             ReadOnlySpan<byte> contentPath =
                 Encoding.UTF8.GetBytes($"$.choices[0].delta.custom_content.stages[{i}].content");

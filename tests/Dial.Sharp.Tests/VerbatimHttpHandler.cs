@@ -38,28 +38,28 @@ internal sealed partial class VerbatimHttpHandler(string expectedInput, string e
         switch (expected)
         {
             case JsonObject expectedObj when actual is JsonObject actualObj:
-            {
-                foreach (KeyValuePair<string, JsonNode?> property in expectedObj)
                 {
-                    if (!actualObj.TryGetPropertyValue(property.Key, out JsonNode? actualValue) ||
-                        property.Value is null ||
-                        !JsonContains(property.Value, actualValue!))
+                    foreach (KeyValuePair<string, JsonNode?> property in expectedObj)
+                    {
+                        if (!actualObj.TryGetPropertyValue(property.Key, out JsonNode? actualValue) ||
+                            property.Value is null ||
+                            !JsonContains(property.Value, actualValue!))
+                        {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }
+            case JsonArray expectedArray when actual is JsonArray actualArray:
+                {
+                    if (expectedArray.Count > actualArray.Count)
                     {
                         return false;
                     }
-                }
 
-                return true;
-            }
-            case JsonArray expectedArray when actual is JsonArray actualArray:
-            {
-                if (expectedArray.Count > actualArray.Count)
-                {
-                    return false;
+                    return !expectedArray.Where((t, i) => !JsonContains(t!, actualArray[i]!)).Any();
                 }
-
-                return !expectedArray.Where((t, i) => !JsonContains(t!, actualArray[i]!)).Any();
-            }
             default:
                 return false;
         }
