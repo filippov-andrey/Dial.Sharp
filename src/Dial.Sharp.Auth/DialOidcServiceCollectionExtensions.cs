@@ -12,6 +12,16 @@ public static class DialOidcServiceCollectionExtensions
     public const string IdpHttpClientName = "Dial.Sharp.Oidc";
 
     /// <summary>
+    /// Registers a singleton <see cref="DialClient"/> with interactive OIDC (Authorization Code + PKCE, automatic
+    /// refresh, Dynamic Client Registration when <see cref="DialOidcOptions.ClientId"/> is unset).
+    /// </summary>
+    public static IDialClientBuilder AddDialClient(
+        this IServiceCollection services,
+        Uri endpoint,
+        Action<DialClientOptions>? configureOptions = null) =>
+        AddDialClient(services, endpoint, configureOidc: null, configureOptions);
+
+    /// <summary>
     /// Registers a singleton <see cref="DialClient"/> authenticated via interactive OIDC (Authorization Code + PKCE,
     /// automatic refresh, optional Dynamic Client Registration). <see cref="DialOidcOptions.ServerUrl"/> defaults to
     /// <paramref name="endpoint"/> when not set in <paramref name="configureOidc"/>.
@@ -19,12 +29,11 @@ public static class DialOidcServiceCollectionExtensions
     public static IDialClientBuilder AddDialClient(
         this IServiceCollection services,
         Uri endpoint,
-        Action<DialOidcOptions> configureOidc,
+        Action<DialOidcOptions>? configureOidc,
         Action<DialClientOptions>? configureOptions = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(endpoint);
-        ArgumentNullException.ThrowIfNull(configureOidc);
 
         RegisterOidc(services, endpoint, configureOidc);
         return services.AddDialClientCore(endpoint, configureOptions);
@@ -60,10 +69,10 @@ public static class DialOidcServiceCollectionExtensions
         return builder;
     }
 
-    private static void RegisterOidc(IServiceCollection services, Uri endpoint, Action<DialOidcOptions> configure)
+    private static void RegisterOidc(IServiceCollection services, Uri endpoint, Action<DialOidcOptions>? configure)
     {
         var options = new DialOidcOptions();
-        configure(options);
+        configure?.Invoke(options);
         options.ServerUrl ??= endpoint;
 
         services.AddHttpClient(IdpHttpClientName);

@@ -207,6 +207,7 @@ public sealed class DialOidcSession : IDisposable
 
         var redirectUri = BuildRedirectUri().ToString();
         Exception? lastError = null;
+        var failures = new List<string>();
 
         foreach (var (url, body) in KeycloakClientRegistration.BuildAttempts(
                      discovery.RegistrationEndpoint, redirectUri, _options))
@@ -221,10 +222,16 @@ public sealed class DialOidcSession : IDisposable
             catch (Exception ex)
             {
                 lastError = ex;
+                failures.Add(ex.Message);
             }
         }
 
-        throw lastError ?? new InvalidOperationException("Dynamic Client Registration failed.");
+        var detail = failures.Count > 0
+            ? Environment.NewLine + string.Join(Environment.NewLine, failures)
+            : string.Empty;
+        throw new InvalidOperationException(
+            "Dynamic Client Registration failed for all known registration endpoints." + detail,
+            lastError);
     }
 
     private async Task<DcrResponse> PostRegistrationAsync(Uri url, object body, CancellationToken cancellationToken)
@@ -245,7 +252,13 @@ public sealed class DialOidcSession : IDisposable
         }
 
         using var response = await _idpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            throw new HttpRequestException(
+                $"Dynamic Client Registration failed for {url}: {(int)response.StatusCode} {response.ReasonPhrase}. {errorBody}".Trim());
+        }
+
         var registered = await response.Content
             .ReadFromJsonAsync(DialAuthJsonContext.Default.DcrResponse, cancellationToken)
             .ConfigureAwait(false);

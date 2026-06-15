@@ -49,6 +49,20 @@ public class DialOidcDependencyInjectionTests
     }
 
     [Fact]
+    public void AddDialClient_Oidc_WithEndpointOnly_RegistersOidcSessionWithDefaults()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IOidcBrowser>(new FakeBrowser());
+        services.AddDialClient(Server);
+
+        using var provider = services.BuildServiceProvider();
+
+        var session = provider.GetRequiredService<DialOidcSession>();
+        Assert.Equal(Server, session.ServerUrl);
+        Assert.NotNull(provider.GetRequiredService<DialClient>());
+    }
+
+    [Fact]
     public void AddDialClient_Oidc_DefaultsServerUrlFromEndpoint()
     {
         var services = new ServiceCollection();

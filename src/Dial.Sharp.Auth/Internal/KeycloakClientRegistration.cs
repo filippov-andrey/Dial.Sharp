@@ -24,6 +24,19 @@ internal static class KeycloakClientRegistration
         var registrationScopes = RegistrationScopes(options);
         var scope = string.Join(' ', registrationScopes);
 
+        var defaultUrl = TryGetDefaultRegistrationUrl(registrationEndpoint);
+        if (defaultUrl is not null)
+        {
+            yield return (
+                new Uri(defaultUrl),
+                new KeycloakDefaultDcrRequest
+                {
+                    Name = options.ClientName,
+                    RedirectUris = [redirectUri],
+                    DefaultClientScopes = registrationScopes,
+                });
+        }
+
         yield return (
             new Uri(registrationEndpoint),
             new DcrRequest
@@ -31,21 +44,6 @@ internal static class KeycloakClientRegistration
                 ClientName = options.ClientName,
                 RedirectUris = [redirectUri],
                 Scope = scope,
-            });
-
-        var defaultUrl = TryGetDefaultRegistrationUrl(registrationEndpoint);
-        if (defaultUrl is null)
-        {
-            yield break;
-        }
-
-        yield return (
-            new Uri(defaultUrl),
-            new KeycloakDefaultDcrRequest
-            {
-                Name = options.ClientName,
-                RedirectUris = [redirectUri],
-                DefaultClientScopes = registrationScopes,
             });
     }
 }

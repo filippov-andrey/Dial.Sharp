@@ -156,7 +156,7 @@ public class DialOidcSessionTests
     }
 
     [Fact]
-    public async Task GetAccessTokenAsync_NoClientId_FallsBackToKeycloakDefaultRegistration()
+    public async Task GetAccessTokenAsync_NoClientId_UsesKeycloakDefaultRegistration()
     {
         const string discovery =
             """
@@ -176,11 +176,6 @@ public class DialOidcSessionTests
                 return RoutingHandler.Json(discovery);
             }
 
-            if (url == "https://idp/realms/test/clients-registrations/openid-connect")
-            {
-                return new HttpResponseMessage(System.Net.HttpStatusCode.Forbidden);
-            }
-
             if (url == "https://idp/realms/test/clients-registrations/default")
             {
                 return RoutingHandler.Json("""{"clientId":"keycloak-client"}""");
@@ -198,10 +193,10 @@ public class DialOidcSessionTests
         Assert.Equal("access-kc", token);
         Assert.Contains(
             handler.Calls,
-            c => c.Uri.AbsoluteUri == "https://idp/realms/test/clients-registrations/openid-connect");
-        Assert.Contains(
-            handler.Calls,
             c => c.Uri.AbsoluteUri == "https://idp/realms/test/clients-registrations/default");
+        Assert.DoesNotContain(
+            handler.Calls,
+            c => c.Uri.AbsoluteUri == "https://idp/realms/test/clients-registrations/openid-connect");
         Assert.Contains("client_id=keycloak-client", browser.AuthorizationUrl!.Query);
     }
 

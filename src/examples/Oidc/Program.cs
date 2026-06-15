@@ -6,17 +6,23 @@ using Microsoft.Extensions.DependencyInjection;
 // OIDC sign-in: interactive Authorization Code + PKCE via Dial.Sharp.Auth.
 // The system browser opens lazily on the first model call; tokens refresh automatically.
 //
-// Env: DIAL_ENDPOINT, DIAL_DEPLOYMENT (optional), DIAL_OIDC_CLIENT_ID (optional - omit to try Dynamic Client Registration).
+// Env: DIAL_ENDPOINT, DIAL_DEPLOYMENT (optional), DIAL_OIDC_CLIENT_ID (optional - omit for Dynamic Client Registration).
 
 Uri endpoint = new(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")
     ?? throw new InvalidOperationException("Set DIAL_ENDPOINT."));
 var deployment = Environment.GetEnvironmentVariable("DIAL_DEPLOYMENT") ?? "qwen3.6-27b-awq";
+var clientId = Environment.GetEnvironmentVariable("DIAL_OIDC_CLIENT_ID");
 
 var services = new ServiceCollection();
-services.AddDialClient(endpoint, options =>
+if (string.IsNullOrWhiteSpace(clientId))
 {
-    options.ClientId = Environment.GetEnvironmentVariable("DIAL_OIDC_CLIENT_ID");
-});
+    services.AddDialClient(endpoint);
+}
+else
+{
+    services.AddDialClient(endpoint, o => o.ClientId = clientId);
+}
+
 services.AddDialChatClient(deployment);
 
 await using var provider = services.BuildServiceProvider();

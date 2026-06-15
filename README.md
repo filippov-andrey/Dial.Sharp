@@ -395,7 +395,7 @@ foreach (var prompt in new[] { "What is AI?", "What is .NET?", "What is AI?" })
 
 - **Api-Key:** `AddDialClient(endpoint, apiKey)`
 - **Bearer:** `AddDialClient(endpoint, DialBearerToken.From(token))`
-- **OIDC** (`AI.Dial.Sharp.Auth`): `AddDialClient(endpoint, oidcOptions => { ... })`
+- **OIDC** (`AI.Dial.Sharp.Auth`): `AddDialClient(endpoint)` — interactive sign-in with Dynamic Client Registration when `ClientId` is not set; pass `oidcOptions => { ... }` only to override defaults
 
 `AddDialChatClient` and `AddDialEmbeddingGenerator` return the Microsoft.Extensions.AI `ChatClientBuilder` / `EmbeddingGeneratorBuilder`, so you can chain middleware:
 
@@ -428,7 +428,7 @@ Console.WriteLine(await chatClient.GetResponseAsync("What is AI?"));
 
 ### OIDC sign-in (Dial.Sharp.Auth)
 
-The optional **`AI.Dial.Sharp.Auth`** package adds interactive OIDC sign-in (Authorization Code + PKCE, automatic refresh, and optional Dynamic Client Registration). Pass an OIDC configuration delegate to `AddDialClient` — the system browser opens lazily on the first request:
+The optional **`AI.Dial.Sharp.Auth`** package adds interactive OIDC sign-in (Authorization Code + PKCE, automatic refresh, and Dynamic Client Registration when no `ClientId` is configured). The system browser opens lazily on the first request:
 
 ```console
 dotnet add package AI.Dial.Sharp.Auth
@@ -444,15 +444,21 @@ using Microsoft.Extensions.DependencyInjection;
 Uri endpoint = new(Environment.GetEnvironmentVariable("DIAL_ENDPOINT")!);
 
 var services = new ServiceCollection();
-services.AddDialClient(endpoint, options =>
-{
-    options.ClientId = Environment.GetEnvironmentVariable("DIAL_OIDC_CLIENT_ID"); // omit to try Dynamic Client Registration
-});
+services.AddDialClient(endpoint);
 services.AddDialChatClient("gpt-4o-mini");
 
 using var provider = services.BuildServiceProvider();
 var chatClient = provider.GetRequiredService<IChatClient>();
 Console.WriteLine(await chatClient.GetResponseAsync("What is AI?"));
+```
+
+To use a pre-registered client instead of Dynamic Client Registration:
+
+```csharp
+services.AddDialClient(endpoint, o =>
+{
+    o.ClientId = Environment.GetEnvironmentVariable("DIAL_OIDC_CLIENT_ID");
+});
 ```
 
 Tokens are kept by `IDialTokenStore` (default: in-memory). Register your own implementation to persist them (for example, in an OS keychain). Without DI, call `DialOidcSession.Create(options).CreateDialClient()` to get a `DialClient` whose requests carry the refreshing token. Run the [Oidc example](src/examples/Oidc/):
